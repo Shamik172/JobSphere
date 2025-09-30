@@ -3,7 +3,7 @@ const http = require("http");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
-// const authRoutes = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const socketHandler = require("./sockets/socketHandler");
 
@@ -20,10 +20,17 @@ app.use(cors());
 app.use(express.json());
 
 // app.use("/api/auth", authRoutes);
+// app.get("/", (req,res) => {
+//   res.send("hello")
+// });
+
 app.use("/api/rooms", roomRoutes);
 
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));
+
+// ✅ Routes
+app.use("/api/auth", authRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)
