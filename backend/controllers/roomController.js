@@ -16,8 +16,12 @@ exports.createRoom = async (req,res) => {
 exports.joinRoom = async (req,res) => {
   try {
     const { roomId } = req.params;
+    console.log("room id : ", roomId)
     const room = await Room.findOne({ roomId });
-    if(!room) return res.status(404).json({error:"Room not found"});
+    if(!room) {
+      console.log("database fetching of room failed")
+      return res.status(404).json({error:"Room not found"});
+    }
     if(!room.participants.includes(req.user.id)){
       room.participants.push(req.user.id);
       await room.save();
