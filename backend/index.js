@@ -5,9 +5,18 @@ const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 const authRoutes = require("./routes/authRoutes");
 const roomRoutes = require("./routes/roomRoutes");
+const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
+const assessmentRoutes = require("./routes/assessmentRoutes");
+const interviewerRoutes = require("./routes/interviewerRoutes");
+
+
+const bodyParser = require("body-parser");
+const codeRoutes = require("./routes/codeRoutes");
+
 
 require("dotenv").config();
+console.log(process.env.JWT_SECRET);
 
 const app = express();
 const server = http.createServer(app);
@@ -18,6 +27,9 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // app.use("/api/auth", authRoutes);
 // app.get("/", (req,res) => {
@@ -25,6 +37,12 @@ app.use(express.json());
 // });
 
 app.use("/api/rooms", roomRoutes);
+app.use("/api/questions", QuestionFetchRouter);
+app.use("/api/assessments", assessmentRoutes);
+app.use("/api/code", codeRoutes);
+app.use("/api/interviewer", interviewerRoutes);
+
+
 
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));
