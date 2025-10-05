@@ -1,14 +1,7 @@
-// middleware/authMiddleware.js
-const jwt = require("jsonwebtoken");
-const Interviewer = require("../models/Interviewer");
-
 exports.protect = async (req, res, next) => {
-  let token;
+  let token = req.cookies.token; // ✅ get token from cookies
 
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-    token = req.headers.authorization.split(" ")[1];
-  }
-
+  console.log("Token from cookies:", token); // Debugging line
   if (!token) {
     return res.status(401).json({ message: "Not authorized, no token" });
   }
