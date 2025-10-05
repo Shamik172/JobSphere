@@ -3,21 +3,25 @@ const http = require("http");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
+const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+
+
+//local imports
+
 const authRoutes = require("./routes/authRoutes");
+const candidateRoutes = require("./routes/candidateRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
-const candidateRoutes = require("./routes/candidateRoutes");
-
-
-const bodyParser = require("body-parser");
 const codeRoutes = require("./routes/codeRoutes");
 
 
+
 require("dotenv").config();
-console.log(process.env.JWT_SECRET);
+//console.log(process.env.JWT_SECRET);
 
 const app = express();
 const server = http.createServer(app);
@@ -26,11 +30,17 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-app.use(cors());
+app.use(cors(
+  {
+    origin: "http://localhost:5173",
+    credentials: true,
+  }
+));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // app.use("/api/auth", authRoutes);
 // app.get("/", (req,res) => {
@@ -43,7 +53,6 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
 app.use("/api/interviewer", interviewerRoutes);
 app.use("/api/candidate", candidateRoutes);
-
 
 
 // Socket.io

@@ -20,6 +20,10 @@ const Home = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "50px" }}>
+      <div style={{ position: "absolute", top: 20, right: 20, display: "flex", gap: 8 }}>
+        <a href="/login">Login</a>
+        <a href="/signup">Signup</a>
+      </div>
       <button onClick={handleCreateRoom} style={{ padding: "10px 20px", marginBottom: "20px" }}>Create Room</button>
 
       <div>

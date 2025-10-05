@@ -2,7 +2,6 @@
 const Candidate = require("../models/Candidate");
 const jwt = require("jsonwebtoken");
 
-// 🔹 Helper: Generate JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1d" });
 };
@@ -29,19 +28,18 @@ exports.signup = async (req, res) => {
       profile: profileData
     });
 
-    // const token = generateToken(candidate._id);
-    // res.status(201).json({
-    //   message: "Signup successful",
-    //   token,
-    //   user: { 
-    //     id: candidate._id, 
-    //     name: candidate.name, 
-    //     email: candidate.email,
-    //     role: "candidate",
-    //     profile: candidate.profile
-    //   },
-    // });
-    res.status(201).json({ message: "Signup successful" });
+    const token = generateToken(candidate._id);
+    res.status(201).json({
+      message: "Signup successful",
+      token,
+      user: { 
+        id: candidate._id, 
+        name: candidate.name, 
+        email: candidate.email,
+        role: "candidate",
+        profile: candidate.profile
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
