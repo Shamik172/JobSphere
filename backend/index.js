@@ -7,21 +7,13 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 
 
-
-
-
-
-
-
-
-
 //local imports
 
 const authRoutes = require("./routes/authRoutes");
 const roomRoutes = require("./routes/roomRoutes");
-const QuestionFetchRouter = require("./routes/questionFetchRouter");
+const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
-const assessmentRoutes = require("./routes/assessmentRoutes");
+const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
 const codeRoutes = require("./routes/codeRoutes");
 
