@@ -1,22 +1,22 @@
 import React, { use } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import Home from "./components/Home"
+import Home from "./components/home/Home"
 import RoomPage from "./components/RoomPage";
-import CodingAndWhiteboard from "./components/interview/CodingAndWhiteboard";
+import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
 import Signup from "./Signup";
 import Login from "./Login";
 import Navbar from "./Navbar";
 import { AuthProvider } from "./context/AuthContext"
-import Dashboard from "./components/interview/Dashboard";
+import Dashboard from "./components/interviewRoom/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
-import VideoCallPage from "./components/interview/video/VideoCallPage"
+import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage"
 
 function App() {
   // const location = useLocation();
   return (
     <AuthProvider>
       <Router>
-        <Navbar />
+        {/* <Navbar /> */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/room/:roomId" element={<RoomPage />} />
