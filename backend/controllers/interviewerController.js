@@ -8,27 +8,24 @@ const generateToken = (id) => {
 };
 
 // @desc Signup
+// @desc Signup
 exports.signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    let interviewer = await Interviewer.findOne({ email });
-    if (interviewer) {
+    const existingUser = await Interviewer.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    interviewer = await Interviewer.create({ name, email, password });
+    await Interviewer.create({ name, email, password });
 
-    const token = generateToken(interviewer._id);
-    res.status(201).json({
-      message: "Signup successful",
-      token,
-      user: { id: interviewer._id, name: interviewer.name, email: interviewer.email },
-    });
+    res.status(201).json({ message: "Signup successful! Please login to continue." });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 // @desc Login
 exports.login = async (req, res) => {
@@ -46,20 +43,30 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(interviewer._id);
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user: { id: interviewer._id, name: interviewer.name, email: interviewer.email },
+
+    // ✅ Send token as HttpOnly cookie instead of JSON
+    res.cookie("token", token, {
+      httpOnly: true,      // JS can't read
+      secure: true,        // only https
+      sameSite: "strict",  // CSRF protection
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
+
+    res.status(200).json({ message: "Login successful" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// @desc Logout (handled client-side, but can blacklist token if needed)
+
+// @desc Logout (clear the HttpOnly cookie)
 exports.logout = async (req, res) => {
   try {
-    // Frontend should just delete token. Optionally add token blacklist logic here.
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -69,10 +76,44 @@ exports.logout = async (req, res) => {
 // @desc Delete Account
 exports.deleteAccount = async (req, res) => {
   try {
-    const userId = req.user.id; // coming from authMiddleware
+    const userId = req.user.id; // set by authMiddleware
     await Interviewer.findByIdAndDelete(userId);
+
+    // also clear token cookie after account deletion
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+
+//auth check
+
+exports.verifyAuth = async (req, res) => {
+  try {
+    const token = req.cookies.token; // cookie me token
+
+    if (!token) {
+      return res.json({ loggedIn: false });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await Interviewer.findById(decoded.id);
+
+    if (!user) {
+      return res.json({ loggedIn: false });
+    }
+
+    res.json({ loggedIn: true }); // sirf boolean
+  } catch (err) {
+    res.json({ loggedIn: false });
   }
 };
