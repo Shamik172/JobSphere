@@ -9,7 +9,7 @@ import Navbar from "./Navbar";
 import { AuthProvider } from "./context/AuthContext"
 import Dashboard from "./components/interview/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
-
+import VideoCallPage from "./components/interview/video/VideoCallPage"
 
 function App() {
   // const location = useLocation();
@@ -23,6 +23,9 @@ function App() {
           <Route path="/assessment" element={<CodingAndWhiteboard />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/videocall/:userId/:questionId/coding" element={<CodingAndWhiteboard/>}/>
+          {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
+          <Route path="/videocall" element={<VideoCallPage/>}/>
        
           <Route 
             path="/dashboard" 
@@ -37,7 +40,6 @@ function App() {
 
       </Router>
     </AuthProvider>
-
   );
 }
 
