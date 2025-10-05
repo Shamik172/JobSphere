@@ -7,8 +7,9 @@ const authRoutes = require("./routes/authRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
-const assessmentRoutes = require("./routes/assessmentRoutes");
+const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
+const candidateRoutes = require("./routes/candidateRoutes");
 
 
 const bodyParser = require("body-parser");
@@ -41,6 +42,7 @@ app.use("/api/questions", QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
 app.use("/api/interviewer", interviewerRoutes);
+app.use("/api/candidate", candidateRoutes);
 
 
 
