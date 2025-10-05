@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/interviewer/verify", {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/verify`, {
           withCredentials: true, // send cookies
         });
 
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
   // Login just re-verifies token
   const login = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/interviewer/verify", { withCredentials: true });
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/verify`, { withCredentials: true });
       setIsLoggedIn(res.data.loggedIn);
     } catch {
       setIsLoggedIn(false);
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
 
   // Logout clears cookie on server
   const logout = async () => {
-    await axios.post("http://localhost:5000/api/interviewer/logout", {}, { withCredentials: true });
+    await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/logout`, {}, { withCredentials: true });
     setIsLoggedIn(false);
   };
 
