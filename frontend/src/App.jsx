@@ -10,6 +10,7 @@ import { AuthProvider } from "./context/AuthContext"
 import Dashboard from "./components/interviewRoom/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage"
+import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
 
 function App() {
   // const location = useLocation();
@@ -26,6 +27,7 @@ function App() {
           <Route path="/videocall/:userId/:questionId/coding" element={<CodingAndWhiteboard/>}/>
           {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
           <Route path="/videocall" element={<VideoCallPage/>}/>
+          <Route path ="/create_assessment" element={<AssessmentBuilder/>}/>
        
           <Route 
             path="/dashboard" 
