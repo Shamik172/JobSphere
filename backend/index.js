@@ -10,11 +10,10 @@ const cookieParser = require("cookie-parser");
 //local imports
 
 const authRoutes = require("./routes/authRoutes");
-const roomRoutes = require("./routes/roomRoutes");
 const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
-const interviewerRoutes = require("./routes/interviewerRoutes");
+// const interviewerRoutes = require("./routes/interviewerRoutes");
 const codeRoutes = require("./routes/codeRoutes");
 
 
@@ -46,11 +45,10 @@ app.use(cookieParser());
 //   res.send("hello")
 // });
 
-app.use("/api/rooms", roomRoutes);
 app.use("/api/questions", QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
-app.use("/api/interviewer", interviewerRoutes);
+// app.use("/api/interviewer", interviewerRoutes);
 
 
 

@@ -28,6 +28,8 @@ function App() {
           {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
           <Route path="/videocall" element={<VideoCallPage/>}/>
           <Route path ="/create_assessment" element={<AssessmentBuilder/>}/>
+          {/* Route for viewing/editing an existing assessment using its ID */}
+          <Route path="/assessment/:id" element={<AssessmentBuilder />} />
        
           <Route 
             path="/dashboard" 

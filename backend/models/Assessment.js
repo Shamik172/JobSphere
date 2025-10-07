@@ -1,31 +1,31 @@
-const mongoose = require("mongoose");
 
-const QuestionSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-  },
-  content: {
-    type: String, // HTML content
-    required: true,
-  },
-  difficulty: {
-    type: String,
-    enum: ["Easy", "Medium", "Hard"],
-    default: "Easy",
-  },
-  testcases: {
-    type: String, // JSON or plain string
-    default: "",
-  },
-}, { _id: false }); // each question won't have its own _id
+const mongoose = require('mongoose');
 
-const AssessmentSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-  },
-  questions: [QuestionSchema], // array of questions
-}, { timestamps: true });
+const assessmentSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+    },
+    description: {
+        type: String,
+    },
+    room_id: {
+        type: String,
+        required: true,
+        unique: true,
+    },
+    created_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Refers to the interviewer who created it
+        required: true,
+    },
+    // This is now an array of references to documents in the 'Question' collection
+    questions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Question',
+    }],
+}, { 
+    timestamps: true 
+});
 
-module.exports = mongoose.model("Assessment", AssessmentSchema);
+module.exports = mongoose.model('Assessment', assessmentSchema);
