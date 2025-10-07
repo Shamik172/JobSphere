@@ -1,6 +1,8 @@
+const jwt = require("jsonwebtoken");
+const { Interviewer } = require("../models/User");
+
 exports.protect = async (req, res, next) => {
   let token = req.cookies.token; // ✅ get token from cookies
-
   console.log("Token from cookies:", token); // Debugging line
   if (!token) {
     return res.status(401).json({ message: "Not authorized, no token" });
@@ -11,6 +13,7 @@ exports.protect = async (req, res, next) => {
     req.user = await Interviewer.findById(decoded.id).select("-password");
     next();
   } catch (error) {
+
     res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
