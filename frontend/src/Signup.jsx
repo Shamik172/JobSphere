@@ -14,6 +14,7 @@ const Signup = () => {
   };
 
   const handleSubmit = async (e) => {
+    console.log(form);
     e.preventDefault();
     setMessage("");
     setLoading(true);
@@ -22,12 +23,13 @@ const Signup = () => {
       const res = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/interviewer/signup`,
         form,
-        { withCredentials: true }
+     
       );
 
       setMessage(res.data.message || "Signup successful!");
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
+      console.log(err)
       setMessage(err.response?.data?.message || "Signup failed");
     } finally {
       setLoading(false);

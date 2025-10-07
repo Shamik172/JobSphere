@@ -5,7 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
 
 // --- API Configuration & Helpers (Integrated) ---
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 const handleResponse = async (response) => {
     if (!response.ok) {
@@ -18,33 +18,43 @@ const handleResponse = async (response) => {
 const api = {
     createAssessment: async (assessmentData) => {
         const response = await fetch(`${API_BASE_URL}/assessments`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(assessmentData),
+            credentials: "include",
         });
         return handleResponse(response);
     },
+
     getAssessmentDetails: async (assessmentId) => {
-        const response = await fetch(`${API_BASE_URL}/assessments/${assessmentId}`);
+        const response = await fetch(`${API_BASE_URL}/assessments/${assessmentId}`, {
+            method: "GET",
+            credentials: "include",
+        });
         return handleResponse(response);
     },
+
     inviteParticipant: async (assessmentId, inviteData) => {
         const response = await fetch(`${API_BASE_URL}/assessments/${assessmentId}/invite`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(inviteData),
+            credentials: "include",
         });
         return handleResponse(response);
     },
+
     addQuestion: async (assessmentId, questionData) => {
-        const response = await fetch(`${API_BASE_URL}/assessments/${assessmentId}/questions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(questionData),
+        const response = await fetch(`${API_BASE_URL}/questions/addQuestionWithLink`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({link: questionData,assessmentId} ),
+            credentials: "include",
         });
         return handleResponse(response);
-    }
+    },
 };
+
 
 // --- React Component ---
 export default function AssessmentBuilder() {
@@ -56,7 +66,7 @@ export default function AssessmentBuilder() {
     const [interviewers, setInterviewers] = useState([]);
     const [candidates, setCandidates] = useState([]);
     const [questions, setQuestions] = useState([]);
-    
+
     // UI State for loading and error handling
     const [isLoading, setIsLoading] = useState(!!id);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,7 +112,7 @@ export default function AssessmentBuilder() {
         try {
             const newAssessment = await api.createAssessment({ name: assessment.name, description: assessment.description });
             navigate(`/assessment/${newAssessment._id}`);
-            setAssessmentId(newAssessment._id); 
+            setAssessmentId(newAssessment._id);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -121,13 +131,16 @@ export default function AssessmentBuilder() {
             alert(`Error: ${err.message}`);
         }
     };
-    
+
     const handleAddQuestion = async () => {
         if (!questionUrl.trim() || !assessmentId) return;
         try {
-            await api.addQuestion(assessmentId, { url: questionUrl });
+            const result = await api.addQuestion(assessmentId, { url: questionUrl });
+            setPreviewQuestion(result.question);
+            console.log(previewQuestion)
+            console.log(result)
             setQuestionUrl("");
-            fetchAssessmentData(); 
+            fetchAssessmentData();
         } catch (err) {
             alert(`Error: ${err.message}`);
         }
@@ -144,7 +157,7 @@ export default function AssessmentBuilder() {
             </div>
         );
     }
-    
+
     if (error) {
         return <div className="min-h-screen flex justify-center items-center bg-red-50 text-red-700 font-semibold text-lg">Error: {error}</div>;
     }
@@ -163,7 +176,7 @@ export default function AssessmentBuilder() {
                     <motion.div whileHover={{ scale: 1.02 }} className="bg-gradient-to-r from-purple-100 to-purple-200 p-4 rounded-xl">
                         <h2 className="text-xl font-bold text-purple-700 mb-3">Candidates</h2>
                         {candidates.length > 0 ? (
-                           <ul className="space-y-2">{candidates.map((c, idx) => <li key={idx} className="flex justify-between items-center p-2 bg-purple-50 rounded-md text-sm text-purple-800 shadow-sm">{c.name}<span className={`text-xs font-semibold ${c.status === "Accepted" ? "text-emerald-600" : "text-purple-400"}`}>{c.status}</span></li>)}</ul>
+                            <ul className="space-y-2">{candidates.map((c, idx) => <li key={idx} className="flex justify-between items-center p-2 bg-purple-50 rounded-md text-sm text-purple-800 shadow-sm">{c.name}<span className={`text-xs font-semibold ${c.status === "Accepted" ? "text-emerald-600" : "text-purple-400"}`}>{c.status}</span></li>)}</ul>
                         ) : <p className="text-sm text-purple-400 italic">No candidates invited yet.</p>}
                     </motion.div>
                 </div>
@@ -195,7 +208,7 @@ export default function AssessmentBuilder() {
                             {questions.length > 0 && <div className="mt-3 space-y-2">{questions.map((q) => <motion.div key={q._id} whileHover={{ scale: 1.02 }} className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center shadow-sm"><span className="text-sm text-indigo-800 font-medium">{q.title}</span><button onClick={() => setPreviewQuestion(q)} className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"><Eye size={12} /> Preview</button></motion.div>)}</div>}
                         </div>
                     </fieldset>
-                    
+
                     {isCreateMode && (
                         <div className="pt-4">
                             <button onClick={handleCreateAssessment} disabled={isSubmitting} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-5 py-3 rounded-xl shadow-lg hover:opacity-90 transition disabled:opacity-75 flex justify-center items-center">
@@ -206,7 +219,7 @@ export default function AssessmentBuilder() {
                 </div>
             </motion.div>
 
-            {previewQuestion && <QuestionPreviewPopup question={previewQuestion} onClose={() => setPreviewQuestion(null)} />}
+            {previewQuestion && <QuestionPreviewPopup question={previewQuestion} onClose={() => setPreviewQuestion()} />}
         </div>
     );
 }

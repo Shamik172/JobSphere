@@ -1,9 +1,10 @@
 const express = require("express");
-const {fetchProblem } = require("../controllers/QuestionFetchController");
+const {protect} = require('../middlewares/authMiddleware')
+const {addQuestionWithLink } = require("../controllers/QuestionFetchController");
 
 const router = express.Router();
 
 
-// router.post("/fetch-question", fetchProblem);
+router.post("/addQuestionWithLink", protect , addQuestionWithLink);
 module.exports = router;
 
