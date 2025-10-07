@@ -4,6 +4,6 @@ const {fetchProblem } = require("../controllers/QuestionFetchController");
 const router = express.Router();
 
 
-router.post("/fetch-question", fetchProblem);
+// router.post("/fetch-question", fetchProblem);
 module.exports = router;
 

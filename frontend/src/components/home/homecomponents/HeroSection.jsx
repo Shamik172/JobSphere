@@ -36,7 +36,7 @@ export default function HeroSection() {
             Watch Demo <ArrowRight size={16} />
           </a>
           <a
-            href="/create-assessment"
+            href="/create_assessment"
             className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-5 py-3 text-sm font-medium hover:bg-slate-50"
           >
             Create Assessment
