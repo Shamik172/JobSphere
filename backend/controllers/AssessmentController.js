@@ -20,13 +20,13 @@ exports.createAssessment = async (req, res) => {
         await newAssessment.save();
 
         // Automatically add the creator as the first 'Accepted' participant
-        const participant = new AssessmentParticipant({
-            assessment: newAssessment._id,
-            user: req.user._id,
-            role: 'interviewer',
-            status: 'Accepted',
-        });
-        await participant.save();
+        // const participant = new AssessmentParticipant({
+        //     assessment: newAssessment._id,
+        //     user: req.user._id,
+        //     role: 'interviewer',
+        //     status: 'Accepted',
+        // });
+        // await participant.save();
 
         // Respond with the newly created assessment object. The frontend will use its _id to navigate.
         res.status(201).json(newAssessment);
@@ -119,4 +119,49 @@ exports.getAssessmentDetails = async (req, res) => {
         res.status(500).json({ message: 'Error fetching assessment details', error: error.message });
     }
 };
+
+
+exports.getMyAssessments = async (req, res) => {
+    console.log("calll")
+  try {
+    const userId = req.user._id;
+      console.log(req.user);
+    // 1️⃣ Hosted Assessments (user created)
+    const hosted = await Assessment.find({ created_by: userId })
+      .select("_id name description createdAt updatedAt")
+      .sort({ createdAt: -1 });
+
+    // 2️⃣ Collaborator Assessments (where user is interviewer)
+    const collaboratorRecords = await AssessmentParticipant.find({
+      user: userId,
+      role: "interviewer",
+    })
+      .populate("assessment", "_id name description createdAt updatedAt")
+      .sort({ createdAt: -1 });
+     
+
+    console.log(collaboratorRecords)
+    // Map collaborator assessments properly
+    const collaborator = collaboratorRecords
+      .filter((p) => p.assessment)
+      .map((p) => ({
+        _id: p.assessment._id,
+        name: p.assessment.name,
+        description: p.assessment.description,
+        createdAt: p.assessment.createdAt,
+        updatedAt: p.assessment.updatedAt,
+      }));
+
+    return res.status(200).json({
+      hosted,
+      collaborator,
+    });
+  } catch (err) {
+    console.error("Error fetching assessments:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+
 
