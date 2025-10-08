@@ -24,7 +24,7 @@ const addQuestionWithLink = async (req, res) => {
       return res.status(404).json({ message: "Assessment not found" });
 
     // --- Step 3: Fetch Problem Data from LeetCode ---
-    const result = await getProblemFromLink(link.url);
+    const result = await getProblemFromLink(link);
     if (!result?.data?.question)
       return res
         .status(404)
@@ -45,7 +45,7 @@ const addQuestionWithLink = async (req, res) => {
       added_by: interviewerId,
       title: q.title,
       description: q.content,
-      url: link.url,
+      url: link,
       difficulty: q.difficulty || "Medium",
       runTestCases: generatedCases.visible || [],
       hiddenTestCases: generatedCases.hidden || [],
