@@ -3,7 +3,7 @@ const Assessment = require('../models/Assessment');
 const Question = require('../models/Question');
 const AssessmentParticipant = require('../models/AssessmentParticipant');
 const { Interviewer, Candidate } = require('../models/User');
-
+const sendEmail = require('../utils/mailSender'); 
 // --- 1. Create a New Assessment ---
 // This is triggered when the user is on `/create_assessment` and clicks "Save and Continue".
 exports.createAssessment = async (req, res) => {
@@ -167,3 +167,82 @@ exports.getAssessmentDetails = async (req, res) => {
     }
 };
 
+exports.inviteParticipant = async (req, res) => {
+    try {
+        const { id: assessmentId } = req.params;
+        const { email, role } = req.body;
+
+        if (!email || !role) {
+            return res.status(400).json({ message: 'Email and role are required.' });
+        }
+
+        let user;
+        // Find or create the user based on their intended role
+        if (role === 'interviewer') {
+            user = await Interviewer.findOneAndUpdate(
+                { email },
+                { name: email.split('@')[0], email, password: 'defaultPassword123', role },
+                { upsert: true, new: true }
+            );
+        } else { // role === 'candidate'
+            user = await Candidate.findOneAndUpdate(
+                { email },
+                { name: email.split('@')[0], email, password: 'defaultPassword123', role },
+                { upsert: true, new: true }
+            );
+        }
+
+        const assessment = await Assessment.findById(assessmentId);
+        if (!assessment) {
+            return res.status(404).json({ message: 'Assessment not found' });
+        }
+
+        const existingParticipant = await AssessmentParticipant.findOne({ assessment: assessmentId, user: user._id });
+        if (existingParticipant) {
+            return res.status(409).json({ message: 'This user has already been invited.' });
+        }
+        
+        const newParticipant = new AssessmentParticipant({
+            assessment: assessmentId,
+            user: user._id,
+            role,
+        });
+        await newParticipant.save();
+        
+        // --- NEW: Email Sending Logic ---
+        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        let inviteUrl;
+        let emailSubject = `You're invited to an assessment on JobSphere`;
+        let emailBody;
+
+        // Construct a different URL and email body based on the user's role
+        if (role === 'interviewer') {
+            // Interviewers go to the assessment management page
+            inviteUrl = `${FRONTEND_URL}/assessment/${assessmentId}`;
+            emailBody = `
+                <h1>Invitation to Collaborate</h1>
+                <p>You have been invited to be an interviewer for the assessment: <strong>${assessment.name}</strong>.</p>
+                <p>Please click the link below to view the assessment details and add questions.</p>
+                <a href="${inviteUrl}" style="padding: 10px 15px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 5px;">View Assessment</a>
+            `;
+        } else { // role === 'candidate'
+            // Candidates go directly to the live interview (in a real scenario, you might have a waiting room page)
+            // For now, let's link them to a placeholder "start" page
+            inviteUrl = `${FRONTEND_URL}/interview/start/${assessmentId}?user=${user._id}`;
+            emailBody = `
+                <h1>Invitation to Interview</h1>
+                <p>You have been invited to a technical assessment for the role of <strong>${assessment.name}</strong>.</p>
+                <p>Please click the link below at your scheduled time to begin.</p>
+                <a href="${inviteUrl}" style="padding: 10px 15px; background-color: #8b5cf6; color: white; text-decoration: none; border-radius: 5px;">Start Assessment</a>
+            `;
+        }
+
+        // Call your mail sender utility
+        await sendEmail(email, emailSubject, emailBody);
+
+        res.status(200).json({ message: `Successfully invited ${email}` });
+    } catch (error) {
+        console.error('Invitation Error:', error);
+        res.status(500).json({ message: 'Error inviting participant', error: error.message });
+    }
+};
