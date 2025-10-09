@@ -219,11 +219,14 @@ exports.inviteParticipant = async (req, res) => {
         if (role === 'interviewer') {
             // Interviewers go to the assessment management page
             inviteUrl = `${FRONTEND_URL}/assessment/${assessmentId}`;
+            const liveInterviewUrl = `${FRONTEND_URL}/interview/${assessment.room_id}?user=${user._id}`;
             emailBody = `
                 <h1>Invitation to Collaborate</h1>
                 <p>You have been invited to be an interviewer for the assessment: <strong>${assessment.name}</strong>.</p>
                 <p>Please click the link below to view the assessment details and add questions.</p>
                 <a href="${inviteUrl}" style="padding: 10px 15px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 5px;">View Assessment</a>
+                <p>Use this link to join the live video call at the scheduled time.</p>
+                <a href="${liveInterviewUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Join Live Call</a>
             `;
         } else { // role === 'candidate'
             // Candidates go directly to the live interview (in a real scenario, you might have a waiting room page)
