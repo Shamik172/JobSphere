@@ -1,9 +1,15 @@
 const express = require("express");
-const {fetchProblem } = require("../controllers/QuestionFetchController");
+const {protect} = require('../middlewares/authMiddleware')
+const {addQuestionWithLink, getQuestionsByAssessment } = require("../controllers/QuestionFetchController");
 
 const router = express.Router();
 
 
-// router.post("/fetch-question", fetchProblem);
+router.post("/addQuestionWithLink", protect , addQuestionWithLink);
+router.get('/getQuestionsByAssessment/:assessment_id' , (req,res,next) => {
+  console.log("jfladjfls")
+  next()
+} ,getQuestionsByAssessment);
+
 module.exports = router;
 

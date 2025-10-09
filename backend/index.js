@@ -13,7 +13,7 @@ const authRoutes = require("./routes/authRoutes");
 const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
-// const interviewerRoutes = require("./routes/interviewerRoutes");
+const interviewerRoutes = require("./routes/interviewerRoutes");
 const codeRoutes = require("./routes/codeRoutes");
 
 
@@ -45,10 +45,13 @@ app.use(cookieParser());
 //   res.send("hello")
 // });
 
-app.use("/api/questions", QuestionFetchRouter);
+app.use("/api/questions", (req,res,next) => {
+  console.log("jfladjfls")
+  next()
+} ,QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
-// app.use("/api/interviewer", interviewerRoutes);
+app.use("/api/interviewer", interviewerRoutes);
 
 
 
@@ -57,6 +60,7 @@ io.on("connection", (socket) => socketHandler(io, socket));
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
+
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)

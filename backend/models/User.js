@@ -18,11 +18,11 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    role: {
-        type: String,
-        required: true,
-        enum: ['interviewer', 'candidate'],
-    },
+    // role: {
+    //     type: String,
+    //     required: true,
+    //     enum: ['interviewer', 'candidate'],
+    // },
 }, { 
     timestamps: true,
     discriminatorKey: 'role' 

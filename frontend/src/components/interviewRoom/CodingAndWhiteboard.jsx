@@ -1,21 +1,37 @@
 import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import CodingPanel from "./coding/CodingPanel";
 import WhiteboardPanel from "./whiteboard/WhiteboardPanel";
 import VideoCallWindow from "./videocall/VideoCallWindow";
-import { X } from "lucide-react";
+import { X, ArrowLeft } from "lucide-react";
 
 const CodingAndWhiteboard = ({ roomId, userId }) => {
   const [mode, setMode] = useState("coding");
   const [showVideo, setShowVideo] = useState(true);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // ✅ get the passed question data
+  const question = location.state?.question;
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-100 via-blue-200 to-purple-200 border border-white/30 rounded-xl shadow-xl overflow-hidden relative">
 
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-3 bg-white/60 backdrop-blur-md border-b border-white/50 shadow-md z-10">
-        <h1 className="text-xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent tracking-wide">
-          JobSphere
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)} // 👈 go back to video call page
+            className="p-2 rounded-full hover:bg-gray-200 transition"
+          >
+            <ArrowLeft size={18} className="text-indigo-700" />
+          </button>
+          <h1 className="text-xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent tracking-wide">
+            JobSphere
+          </h1>
+        </div>
+
         {mode === "coding" ? (
           <button
             onClick={() => setMode("whiteboard")}
@@ -35,7 +51,11 @@ const CodingAndWhiteboard = ({ roomId, userId }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex mt-0.5 bg-white/50 backdrop-blur-sm border-t border-white/30 overflow-hidden rounded-b-xl">
-        {mode === "coding" ? <CodingPanel /> : <WhiteboardPanel />}
+        {mode === "coding" ? (
+          <CodingPanel question={question} /> // pass the question here
+        ) : (
+          <WhiteboardPanel />
+        )}
       </div>
 
       {/* Floating Video Call Window */}
@@ -53,7 +73,6 @@ const CodingAndWhiteboard = ({ roomId, userId }) => {
         </div>
       )}
     </div>
-
   );
 };
 

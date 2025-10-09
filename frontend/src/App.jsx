@@ -5,41 +5,33 @@ import RoomPage from "./components/RoomPage";
 import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
 import Signup from "./Signup";
 import Login from "./Login";
-import Navbar from "./Navbar";
 import { AuthProvider } from "./context/AuthContext"
-import Dashboard from "./components/interviewRoom/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage"
 import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
-
+import UpcomingAssessments from "./components/assessment/UpcomingAssessment";
+import Navbar from "./components/home/homecomponents/Navbar";
 function App() {
   // const location = useLocation();
   return (
     <AuthProvider>
       <Router>
-        {/* <Navbar /> */}
+        {/* <Navbar/> */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/room/:roomId" element={<RoomPage />} />
           <Route path="/assessment" element={<CodingAndWhiteboard />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/videocall/:userId/:questionId/coding" element={<CodingAndWhiteboard/>}/>
           {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
-          <Route path="/videocall" element={<VideoCallPage/>}/>
+          <Route path="/videocall/:roomId" element={<VideoCallPage/>}/>
+          <Route path="/videocall/:roomId/:questionid/coding&whiteboard" element={<CodingAndWhiteboard/>}/>
           <Route path ="/create_assessment" element={<AssessmentBuilder/>}/>
           {/* Route for viewing/editing an existing assessment using its ID */}
           <Route path="/assessment/:id" element={<AssessmentBuilder />} />
+          <Route path="/assessment/upcoming_assessment" element={<UpcomingAssessments/>}/>
        
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard/>
-              </ProtectedRoute>
-            } 
-          />
-       
+         
         </Routes>
 
       </Router>

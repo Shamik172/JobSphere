@@ -39,13 +39,12 @@ export default function QuestionPreviewPopup({ question, onClose }) {
           ))} */}
           {question.difficulty && (
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                question.difficulty === "Easy"
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${question.difficulty === "Easy"
                   ? "bg-emerald-100 text-emerald-700"
                   : question.difficulty === "Medium"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+                }`}
             >
               {question.difficulty}
             </span>
@@ -53,8 +52,11 @@ export default function QuestionPreviewPopup({ question, onClose }) {
         </div>
 
         {/* Description */}
-        <div className="text-gray-700 mb-4 whitespace-pre-line">{question.description}</div>
 
+        <div
+          className="text-gray-700 mb-4 whitespace-pre-line"
+          dangerouslySetInnerHTML={{ __html: question.description }}
+        />
         {/* Examples */}
         {question.examples?.length > 0 && (
           <div className="mb-4">
