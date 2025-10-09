@@ -16,16 +16,16 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Navbar/>
+        {/* <Navbar/> */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/room/:roomId" element={<RoomPage />} />
           <Route path="/assessment" element={<CodingAndWhiteboard />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/videocall/:userId/:questionId/coding" element={<CodingAndWhiteboard/>}/>
           {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
-          <Route path="/videocall" element={<VideoCallPage/>}/>
+          <Route path="/videocall/:roomId" element={<VideoCallPage/>}/>
+          <Route path="/videocall/:roomId/:questionid/coding&whiteboard" element={<CodingAndWhiteboard/>}/>
           <Route path ="/create_assessment" element={<AssessmentBuilder/>}/>
           {/* Route for viewing/editing an existing assessment using its ID */}
           <Route path="/assessment/:id" element={<AssessmentBuilder />} />

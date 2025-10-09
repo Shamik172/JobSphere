@@ -73,11 +73,12 @@ const addQuestionWithLink = async (req, res) => {
  */
 const getQuestionsByAssessment = async (req, res) => {
   try {
-    const { assessmentId } = req.params;
-    if (!assessmentId)
+    const { assessment_id } = req.params;
+    console.log(req.params)
+    if (!assessment_id)
       return res.status(400).json({ message: "Assessment ID required" });
 
-    const questions = await Question.find({ assessment: assessmentId })
+    const questions = await Question.find({ assessment: assessment_id })
       .populate("added_by", "name email")
       .sort({ createdAt: -1 });
 

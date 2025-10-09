@@ -78,12 +78,12 @@ exports.getMyAssessments = async (req, res) => {
   try {
     const userId = req.user._id;
       console.log(req.user);
-    // 1️⃣ Hosted Assessments (user created)
+    // Hosted Assessments (user created)
     const hosted = await Assessment.find({ created_by: userId })
       .select("_id name description createdAt updatedAt")
       .sort({ createdAt: -1 });
 
-    // 2️⃣ Collaborator Assessments (where user is interviewer)
+    // Collaborator Assessments (where user is interviewer)
     const collaboratorRecords = await AssessmentParticipant.find({
       user: userId,
       role: "interviewer",
@@ -144,6 +144,8 @@ exports.inviteParticipant = async (req, res) => {
         }
 
         const assessment = await Assessment.findById(assessmentId);
+        console.log(assessment)
+
         if (!assessment) {
             return res.status(404).json({ message: 'Assessment not found' });
         }
@@ -161,7 +163,7 @@ exports.inviteParticipant = async (req, res) => {
         await newParticipant.save();
         
         // --- NEW: Email Sending Logic ---
-        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const FRONTEND_URL = process.env.FRONTEND_URL;
         let inviteUrl;
         let emailSubject = `You're invited to an assessment on JobSphere`;
         let emailBody;
@@ -169,7 +171,7 @@ exports.inviteParticipant = async (req, res) => {
         // Construct a different URL and email body based on the user's role
         if (role === 'interviewer') {
             // Interviewers go to the assessment management page
-            inviteUrl = `${FRONTEND_URL}/assessment/${assessmentId}`;
+            inviteUrl = `${FRONTEND_URL}/videocall/${assessment.room_id}`;
             emailBody = `
                 <h1>Invitation to Collaborate</h1>
                 <p>You have been invited to be an interviewer for the assessment: <strong>${assessment.name}</strong>.</p>

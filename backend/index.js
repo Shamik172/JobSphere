@@ -45,7 +45,10 @@ app.use(cookieParser());
 //   res.send("hello")
 // });
 
-app.use("/api/questions", QuestionFetchRouter);
+app.use("/api/questions", (req,res,next) => {
+  console.log("jfladjfls")
+  next()
+} ,QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
 app.use("/api/interviewer", interviewerRoutes);

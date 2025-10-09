@@ -1,23 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import VideoCallWindow from "./VideoCallWindow";
-import { X } from "lucide-react";
+import axios from "axios";
 
 export default function VideoCallPage() {
   const [showQuestions, setShowQuestions] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Example pre-set questions
-  const questions = [
-    { id: "q1", title: "Two Sum", difficulty: "Easy" },
-    { id: "q2", title: "LRU Cache", difficulty: "Medium" },
-    { id: "q3", title: "Median of Two Sorted Arrays", difficulty: "Hard" },
-  ];
+  const assessment_id = "68e65f2f30869926ccdcf65d";
 
-  const userId = "user1";
+  useEffect(() => {
+    if (showQuestions) fetchQuestions();
+  }, [showQuestions]);
+
+  const fetchQuestions = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/questions/getQuestionsByAssessment/${assessment_id}`,
+        { withCredentials: true }
+      );
+      setQuestions(res.data.questions);
+    } catch (err) {
+      console.error("Failed to fetch questions:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Navigate to coding route with question data
+  const handleQuestionSelect = (question) => {
+    setShowQuestions(false);
+    navigate("/videocall/coding", { state: { question } });
+  };
 
   return (
     <div className="w-screen h-screen bg-gray-900 relative overflow-hidden">
+      {/* Video call window (main area) */}
       <VideoCallWindow />
 
       {/* Top-left "Questions" button */}
@@ -30,7 +52,7 @@ export default function VideoCallPage() {
         </button>
       </div>
 
-      {/* Sliding side panel */}
+      {/* Sliding questions panel */}
       <div
         className={`fixed top-0 right-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ${
           showQuestions ? "translate-x-0" : "translate-x-full"
@@ -42,19 +64,24 @@ export default function VideoCallPage() {
             <X size={20} />
           </button>
         </div>
+
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {questions.map((q) => (
-            <button
-              key={q.id}
-              onClick={() =>
-                navigate(`/videocall/${userId}/${q.id}/coding`)
-              }
-              className="w-full flex justify-between items-center px-4 py-2 rounded-md hover:bg-gray-100 transition"
-            >
-              <span className="font-medium text-gray-800">{q.title}</span>
-              <span className="text-sm text-gray-500">({q.difficulty})</span>
-            </button>
-          ))}
+          {loading ? (
+            <p className="text-gray-500 text-center">Loading questions...</p>
+          ) : questions.length === 0 ? (
+            <p className="text-gray-500 text-center">No questions found</p>
+          ) : (
+            questions.map((q) => (
+              <button
+                key={q._id}
+                onClick={() => handleQuestionSelect(q)} // ✅ navigate to coding page
+                className="w-full flex justify-between items-center px-4 py-2 rounded-md hover:bg-gray-100 transition"
+              >
+                <span className="font-medium text-gray-800">{q.title}</span>
+                <span className="text-sm text-gray-500">({q.difficulty})</span>
+              </button>
+            ))
+          )}
         </div>
       </div>
 
