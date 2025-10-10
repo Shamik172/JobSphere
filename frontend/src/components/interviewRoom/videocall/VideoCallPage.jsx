@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import VideoCallWindow from "./VideoCallWindow";
 import axios from "axios";
 
 export default function VideoCallPage() {
+  const { assessmentId, roomId } = useParams();
+  // console.log("roomroomId : ", roomId)
+
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const assessment_id = "68e65f2f30869926ccdcf65d";
 
   useEffect(() => {
     if (showQuestions) fetchQuestions();
@@ -20,7 +21,7 @@ export default function VideoCallPage() {
     try {
       setLoading(true);
       const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_URL}/api/questions/getQuestionsByAssessment/${assessment_id}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/questions/assessment/${assessmentId}`,
         { withCredentials: true }
       );
       setQuestions(res.data.questions);
@@ -31,10 +32,11 @@ export default function VideoCallPage() {
     }
   };
 
-  // ✅ Navigate to coding route with question data
-  const handleQuestionSelect = (question) => {
+  // Navigate to coding route with question data
+  const handleQuestionSelect = (q) => {
     setShowQuestions(false);
-    navigate("/videocall/coding", { state: { question } });
+    console.log("questions : ",q)
+    navigate(`/videocall/${assessmentId}/${roomId}/${q._id}/coding&whiteboard`, { state: { q } });
   };
 
   return (
@@ -74,7 +76,7 @@ export default function VideoCallPage() {
             questions.map((q) => (
               <button
                 key={q._id}
-                onClick={() => handleQuestionSelect(q)} // ✅ navigate to coding page
+                onClick={() => handleQuestionSelect(q)} // navigate to coding page
                 className="w-full flex justify-between items-center px-4 py-2 rounded-md hover:bg-gray-100 transition"
               >
                 <span className="font-medium text-gray-800">{q.title}</span>

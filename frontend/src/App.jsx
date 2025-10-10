@@ -16,7 +16,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        {/* <Navbar/> */}
+        <Navbar/>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/room/:roomId" element={<RoomPage />} />
@@ -24,8 +24,8 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           {/* <Route path="/videocall/coding" element={<CodingAndWhiteboard/>}/> */}
-          <Route path="/videocall/:roomId" element={<VideoCallPage/>}/>
-          <Route path="/videocall/:roomId/:questionid/coding&whiteboard" element={<CodingAndWhiteboard/>}/>
+          <Route path="/videocall/:assessmentId/:roomId" element={<VideoCallPage/>}/>
+          <Route path="/videocall/:assessmentId/:roomId/:questionId/coding&whiteboard" element={<CodingAndWhiteboard/>}/>
           <Route path ="/create_assessment" element={<AssessmentBuilder/>}/>
           {/* Route for viewing/editing an existing assessment using its ID */}
           <Route path="/assessment/:id" element={<AssessmentBuilder />} />
