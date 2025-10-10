@@ -41,10 +41,10 @@ exports.createAssessment = async (req, res) => {
 exports.getAssessmentDetails = async (req, res) => {
     try {
         const { id: assessmentId } = req.params;
+        console.log("id : ", req.params)
         
         // 1. Fetch the main assessment document and populate its `questions` array with the full question documents
-        const assessment = await Assessment.findById(assessmentId)
-            .populate('questions');
+        const assessment = await Assessment.findById(assessmentId).populate('questions');
 
         if (!assessment) {
             return res.status(404).json({ message: 'Assessment not found' });
@@ -59,6 +59,7 @@ exports.getAssessmentDetails = async (req, res) => {
             _id: assessment._id,
             name: assessment.name,
             description: assessment.description,
+            roomId: assessment.room_id,
             questions: assessment.questions,
             // Separate participants into two arrays for easy rendering in the UI
             interviewers: participants.filter(p => p.role === 'interviewer').map(p => ({ name: p.user.name, status: p.status })),
@@ -74,10 +75,10 @@ exports.getAssessmentDetails = async (req, res) => {
 
 
 exports.getMyAssessments = async (req, res) => {
-    console.log("calll")
+    // console.log("calll")
   try {
     const userId = req.user._id;
-      console.log(req.user);
+    // console.log(req.user);
     // Hosted Assessments (user created)
     const hosted = await Assessment.find({ created_by: userId })
       .select("_id name description createdAt updatedAt")
@@ -92,7 +93,7 @@ exports.getMyAssessments = async (req, res) => {
       .sort({ createdAt: -1 });
      
 
-    console.log(collaboratorRecords)
+    // console.log(collaboratorRecords)
     // Map collaborator assessments properly
     const collaborator = collaboratorRecords
       .filter((p) => p.assessment)
@@ -113,9 +114,6 @@ exports.getMyAssessments = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
-
-
 
 
 exports.inviteParticipant = async (req, res) => {
@@ -185,12 +183,12 @@ exports.inviteParticipant = async (req, res) => {
         } else { // role === 'candidate'
             // Candidates go directly to the live interview (in a real scenario, you might have a waiting room page)
             // For now, let's link them to a placeholder "start" page
-            inviteUrl = `${FRONTEND_URL}/interview/start/${assessmentId}?user=${user._id}`;
+            const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment.room_id}`;
             emailBody = `
                 <h1>Invitation to Interview</h1>
                 <p>You have been invited to a technical assessment for the role of <strong>${assessment.name}</strong>.</p>
                 <p>Please click the link below at your scheduled time to begin.</p>
-                <a href="${inviteUrl}" style="padding: 10px 15px; background-color: #8b5cf6; color: white; text-decoration: none; border-radius: 5px;">Start Assessment</a>
+                <a href="${liveInterviewUrl}" style="padding: 10px 15px; background-color: #8b5cf6; color: white; text-decoration: none; border-radius: 5px;">Start Assessment</a>
             `;
         }
 

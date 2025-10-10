@@ -9,7 +9,7 @@ const { generateTestCases } = require("../services/aiTestcaseGenerator");
 const addQuestionWithLink = async (req, res) => {
   try {
     const { link, assessmentId } = req.body;
-    console.log(req.body);
+    // console.log(req.body);
     const interviewerId = req.user?._id; // optional if authentication added later
   
     // --- Step 1: Validate Inputs ---
@@ -71,10 +71,10 @@ const addQuestionWithLink = async (req, res) => {
 /**
  * 🔹 Get all questions for a given assessment
  */
-const getQuestionsByAssessment = async (req, res) => {
+const getAllAssessmentQuestions = async (req, res) => {
   try {
     const { assessment_id } = req.params;
-    console.log(req.params)
+    // console.log("dlfjlaf : ", req.params)
     if (!assessment_id)
       return res.status(400).json({ message: "Assessment ID required" });
 
@@ -86,6 +86,40 @@ const getQuestionsByAssessment = async (req, res) => {
   } catch (err) {
     console.error("Error in getQuestionsByAssessment:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+// GET /api/questions/getQuestionById/:questionsId for fetching in codingpanel page
+const getQuestionById = async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    // console.log(req)
+
+    // Validate ID format (optional but recommended)
+    if (!questionId || questionId.length < 10) {
+      return res.status(400).json({ success: false, message: "Invalid question ID" });
+    }
+
+    // Find question by ID
+    const question = await Question.findById(questionId);
+
+    if (!question) {
+      return res.status(404).json({ success: false, message: "Question not found" });
+    }
+
+    // Return success response
+    res.status(200).json({
+      success: true,
+      question,
+    });
+  } catch (error) {
+    console.error("Error fetching question by ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching question",
+      error: error.message,
+    });
   }
 };
 
@@ -128,7 +162,8 @@ const runCandidateCode = async (req, res) => {
 
 module.exports = {
   addQuestionWithLink,
-  getQuestionsByAssessment,
+  getQuestionById,
+  getAllAssessmentQuestions,
   deleteQuestion,
   runCandidateCode,
 };

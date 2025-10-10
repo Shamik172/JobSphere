@@ -10,7 +10,7 @@ const handleResponse = async (res) => {
       const errorData = await res.json();
       throw new Error(errorData.message || "Failed to fetch data");
     } catch {
-      throw new Error("Failed to fetch data: " + res.statusText);
+      throw new Error("Faupcoming_assessmentiled to fetch data: " + res.statusText);
     }
   }
   return res.json();

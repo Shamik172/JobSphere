@@ -8,6 +8,7 @@ import {
   Link2,
   Eye,
   Loader2,
+  Video,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
@@ -41,6 +42,7 @@ const api = {
       method: "GET",
       credentials: "include",
     });
+    console.log("res: ", response)
     return handleResponse(response);
   },
 
@@ -68,6 +70,7 @@ const api = {
 // --- React Component ---
 export default function AssessmentBuilder() {
   const { id } = useParams();
+  // console.log("PARAM ID : ", id)
   const navigate = useNavigate();
 
   const [assessmentId, setAssessmentId] = useState(id || null);
@@ -75,6 +78,7 @@ export default function AssessmentBuilder() {
   const [interviewers, setInterviewers] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [roomId, setRoomId] = useState(id, null);
 
   const [isLoading, setIsLoading] = useState(!!id);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,15 +92,18 @@ export default function AssessmentBuilder() {
 
   // --- Fetch Assessment ---
   const fetchAssessmentData = useCallback(async () => {
+    console.log("Assessment id : ", assessmentId)
     if (!assessmentId) return;
     setIsLoading(true);
     setError(null);
     try {
       const data = await api.getAssessmentDetails(assessmentId);
+      console.log("data in assessment : ", data)
       setAssessment({ name: data.name, description: data.description });
       setInterviewers(data.interviewers);
       setCandidates(data.candidates);
       setQuestions(data.questions);
+      setRoomId(data.roomId);
     } catch (err) {
       setError(err.message);
       console.error("Failed to fetch assessment details:", err);
@@ -154,7 +161,7 @@ export default function AssessmentBuilder() {
         setPreviewQuestion(result.question);
         setQuestionUrl("");
         await fetchAssessmentData();
-        alert("✅ Question added successfully!");
+        alert("Question added successfully!");
       }
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -211,11 +218,10 @@ export default function AssessmentBuilder() {
                   >
                     {i.name}
                     <span
-                      className={`text-xs font-semibold ${
-                        i.status === "Accepted"
+                      className={`text-xs font-semibold ${i.status === "Accepted"
                           ? "text-emerald-600"
                           : "text-indigo-400"
-                      }`}
+                        }`}
                     >
                       {i.status}
                     </span>
@@ -246,11 +252,10 @@ export default function AssessmentBuilder() {
                   >
                     {c.name}
                     <span
-                      className={`text-xs font-semibold ${
-                        c.status === "Accepted"
+                      className={`text-xs font-semibold ${c.status === "Accepted"
                           ? "text-emerald-600"
                           : "text-purple-400"
-                      }`}
+                        }`}
                     >
                       {c.status}
                     </span>
@@ -267,9 +272,21 @@ export default function AssessmentBuilder() {
 
         {/* RIGHT PANEL */}
         <div className="md:col-span-2 bg-white rounded-2xl shadow-xl p-8 border border-indigo-100 space-y-6">
-          <h1 className="text-3xl font-bold text-indigo-800">
-            {isCreateMode ? "Create New Assessment" : assessment.name}
-          </h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-indigo-800">
+              {isCreateMode ? "Create New Assessment" : assessment.name}
+            </h1>
+
+            {!isCreateMode && (
+              <button
+                onClick={() => navigate(`/videocall/${assessmentId}/${roomId}`)}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold px-5 py-2 rounded-xl shadow-md hover:opacity-90 transition"
+              >
+                <Video size={18} />
+                Join Video Call
+              </button>
+            )}
+          </div>
 
           {/* Assessment Info */}
           <div className="space-y-4">
@@ -365,11 +382,10 @@ export default function AssessmentBuilder() {
                 <button
                   onClick={handleAddQuestion}
                   disabled={isAddingQuestion}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                    isAddingQuestion
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${isAddingQuestion
                       ? "bg-indigo-400 cursor-not-allowed"
                       : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                  }`}
+                    }`}
                 >
                   {isAddingQuestion ? (
                     <>

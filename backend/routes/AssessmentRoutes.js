@@ -26,8 +26,4 @@ router.get('/:id', protect ,assessmentController.getAssessmentDetails);
 router.post('/:id/invite',protect , assessmentController.inviteParticipant);
 
 
-
-
-
-
 module.exports = router;
