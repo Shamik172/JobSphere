@@ -12,14 +12,14 @@ const CodingPanel = ({ questionId }) => {
   const [code, setCode] = useState(`// Write your ${language} code here...`);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const [call, setCall] = useState(false);
-  if(!call && questionId){
-       const fetchQuestion = async () => {
+  if (!call && questionId) {
+    const fetchQuestion = async () => {
       console.log("question fetch", questionId)
       try {
         setLoading(true);
-        setError(null);setCall(true);
+        setError(null); setCall(true);
         const res = await axios.get(
           `${import.meta.env.VITE_BACKEND_URL}/api/questions/${questionId}`,
           { withCredentials: true }
@@ -73,23 +73,79 @@ const CodingPanel = ({ questionId }) => {
   }, [language]);
 
   // 🔹 Handle code execution and submission (mock for now)
-  const handleRun = async () => {
-    console.log("Running code:", code, "Language:", language);
-    try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/questions/run`,
-        { code, language, questionId },
-        { withCredentials: true }
-      );
-      alert(res.data.result || "Code executed!");
-    } catch (err) {
-      console.error("Run error:", err);
-      alert("Error executing code.");
+
+const handleRun = async () => {
+  console.log("Running all test cases...");
+
+  try {
+    const testCases = question.runTestCases; // array of { input, output }
+
+    // Run all test cases in parallel
+    const results = await Promise.all(
+      testCases.map(async (tc, idx) => {
+        const res = await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}/api/code/run`,
+          {
+            code,
+            language,
+            input: tc.input,
+            expected_output: tc.output
+          },
+          { withCredentials: true }
+        );
+
+        const computed_output = (res.data.stdout || "").trim();
+        const expected_output = (tc.expected_output || "").trim();
+        const passed = computed_output === expected_output;
+
+        // If backend returned error or stderr, mark as failed
+        const errorMsg = res.data.error || res.data.stderr || null;
+
+        return {
+          index: idx + 1,
+          input: tc.input,
+          expected_output,
+          computed_output,
+          passed: errorMsg ? false : passed,
+          error: errorMsg
+        };
+      })
+    );
+
+    // Show results in console table
+    console.table(
+      results.map(r => ({
+        TestCase: r.index,
+        Passed: r.passed,
+        "Expected Output": r.expected_output,
+        "Computed Output": r.computed_output,
+        Error: r.error
+      }))
+    );
+
+    // Alert summary
+    const passedCount = results.filter(r => r.passed).length;
+    alert(`${passedCount} / ${results.length} test cases passed!`);
+
+    // Optionally, display errors in UI (example using alert for now)
+    const failedCases = results.filter(r => r.error);
+    if (failedCases.length > 0) {
+      let errMsg = "Errors in following test cases:\n";
+      failedCases.forEach(r => {
+        errMsg += `Test ${r.index}: ${r.error}\n`;
+      });
+      alert(errMsg);
     }
-  };
+
+  } catch (err) {
+    console.error("Run error:", err);
+    alert("Error executing one or more test cases.");
+  }
+};
+
 
   const handleSubmit = async () => {
-    console.log("Submitting code:", code, "Language:", language);
+    // console.log("Submitting code:", code, "Language:", language);
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/questions/submit`,
@@ -109,7 +165,7 @@ const CodingPanel = ({ questionId }) => {
 
   return (
     <div className="flex flex-1 h-full overflow-hidden rounded-2xl shadow-xl bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50">
-      
+
       {/* Left Panel - Problem Description */}
       <div className="w-1/3 p-6 bg-white/70 backdrop-blur-md border-r border-indigo-200 rounded-l-2xl overflow-auto">
         <ProblemDescription problem={question} />
@@ -117,7 +173,7 @@ const CodingPanel = ({ questionId }) => {
 
       {/* Right Panel - Code Editor */}
       <div className="w-2/3 flex flex-col bg-white/70 backdrop-blur-md rounded-r-2xl">
-        
+
         {/* Language Selector */}
         <div className="flex items-center justify-between p-4 border-b border-indigo-300 bg-white/60">
           <h2 className="text-sm font-semibold text-indigo-800">Code Editor</h2>
