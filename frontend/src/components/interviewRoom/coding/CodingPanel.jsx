@@ -4,8 +4,10 @@ import ProblemDescription from "./codingComponents/ProblemDescription";
 import CodeEditor from "./codingComponents/CodeEditor";
 import SubmissionControls from "./codingComponents/SubmissionControls";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
+import { useParams } from "react-router-dom";
+import { useAuth } from "../../../context/AuthContext";
 
-const CodingPanel = ({ questionId, initialCode}) => {
+const CodingPanel = ({ questionId, initialCode }) => {
   const [language, setLanguage] = useState("javascript");
   const [question, setQuestion] = useState(null);
   const [code, setCode] = useState(initialCode || `// Write your ${language} code here...`);
@@ -13,19 +15,36 @@ const CodingPanel = ({ questionId, initialCode}) => {
   const [error, setError] = useState(null);
 
   const debounceTimeout = useRef(null);
-  
   const socket = useCollabSocket();
-  const lastSentCode = useRef(""); // prevent loops of re-emits
-  // const [attemptId, setAttemptId] = useState(null);
+  const lastSentCode = useRef(initialCode || ""); // prevent loops
 
-  // Set initial code from parent prop
-  useEffect(() => {
-    if (initialCode) {
-      setCode(initialCode);
-      lastSentCode.current = initialCode; // prevent feedback loops
-    }
-  }, [initialCode]);
+  const { assessmentId } = useParams();
+  const { user } = useAuth?.() || {};
+  const candidateId = user?._id || "68dbad15fb53a87ba397bcca";
 
+  // Fetch question from backend
+  // useEffect(() => {
+  //   if (!questionId) return;
+
+  //   const fetchQuestion = async () => {
+  //     setLoading(true);
+  //     setError(null);
+  //     try {
+  //       const res = await axios.get(
+  //         `${import.meta.env.VITE_BACKEND_URL}/api/questions/${questionId}`,
+  //         { withCredentials: true }
+  //       );
+  //       setQuestion(res.data.question);
+  //     } catch (err) {
+  //       console.error("Failed to fetch question:", err);
+  //       setError("Failed to load question. Please try again.");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchQuestion();
+  // }, [questionId]);
 
   // Fetch question and attempt state
   const [call, setCall] = useState(false);
@@ -54,6 +73,7 @@ const CodingPanel = ({ questionId, initialCode}) => {
     fetchQuestion();
   }
 
+  // Ensure placeholder code matches language
   useEffect(() => {
     if (!code || code.startsWith("// Write") || code.startsWith("# Write")) {
       const commentSyntax = language.toLowerCase() === "python" ? "#" : "//";
@@ -61,42 +81,29 @@ const CodingPanel = ({ questionId, initialCode}) => {
     }
   }, [language]);
 
+  // --- NEW: Subscribe to join-room initial state ---
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit("join-room", { assessmentId, candidateId, questionId });
+  }, [socket, assessmentId, candidateId, questionId]);
 
-  // useEffect(() => {
-  //   const fetchQuestionAndAttempt = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const questionRes = await axios.get(
-  //         `${import.meta.env.VITE_BACKEND_URL}/api/questions/${questionId}`,
-  //         { withCredentials: true }
-  //       );
-  //       setQuestion(questionRes.data.question);
+  // --- Listen for load-initial-state from server ---
+  useEffect(() => {
+    if (!socket) return;
 
-  //       // Fetch existing attempt (to restore code)
-  //       const attemptRes = await axios.get(
-  //         `${import.meta.env.VITE_BACKEND_URL}/api/attempts/${questionId}`,
-  //         { withCredentials: true }
-  //       );
-  //       if (attemptRes.data?.attempt) {
-  //         setAttemptId(attemptRes.data.attempt._id);
-  //         setCode(attemptRes.data.attempt.final_code || "");
-  //       } else {
-  //         setCode("// Start coding...");
-  //       }
-  //     } catch (err) {
-  //       console.error("Error loading question/attempt:", err);
-  //       setError("Failed to load question. Please try again.");
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
+    const handleInitialState = (data) => {
+      const newCode = data?.code ?? "";
+      if (newCode && newCode !== code) {
+        setCode(newCode);
+        lastSentCode.current = newCode;
+      }
+    };
 
-  //   if (questionId) fetchQuestionAndAttempt();
-  // }, [questionId]);
+    socket.on("load-initial-state", handleInitialState);
+    return () => socket.off("load-initial-state", handleInitialState);
+  }, [socket, code]);
 
-
-
-  // 🧠 Listen for incoming code updates from socket
+  // Listen for remote code updates
   useEffect(() => {
     if (!socket) return;
 
@@ -110,112 +117,75 @@ const CodingPanel = ({ questionId, initialCode}) => {
     return () => socket.off("code-update", handleRemoteCodeUpdate);
   }, [socket]);
 
-  // Handle local edits -> broadcast via socket
+  // Handle local code changes -> emit via socket (debounced)
   const handleCodeChange = (value) => {
     setCode(value);
     if (!socket) return;
 
-    // Clear previous timeout
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 
-    // Set a new timeout
     debounceTimeout.current = setTimeout(() => {
       if (value !== lastSentCode.current) {
         lastSentCode.current = value;
-        socket.emit("code-change", { code: value, questionId });
+        socket.emit("code-change", { code: value, questionId, assessment: assessmentId, candidate: candidateId });
       }
-    }, 300); // 300ms debounce delay (adjust as needed)
+    }, 300);
   };
 
+  // Cleanup debounce
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, []);
 
-  // Auto-save attempt on interval (every 5s)
-  // useEffect(() => {
-  //   if (!attemptId) return;
-  //   const interval = setInterval(async () => {
-  //     try {
-  //       await axios.put(
-  //         `${import.meta.env.VITE_BACKEND_URL}/api/attempts/${attemptId}`,
-  //         { final_code: code },
-  //         { withCredentials: true }
-  //       );
-  //     } catch (err) {
-  //       console.warn("Autosave failed:", err);
-  //     }
-  //   }, 5000);
-  //   return () => clearInterval(interval);
-  // }, [attemptId, code]);
+  // Run & Submit handlers (unchanged)
+  const handleRun = async () => {
+    if (!question) return alert("Question not loaded");
 
-  // Handle code execution and submission (mock for now)
+    try {
+      const testCases = question.runTestCases || [];
 
-const handleRun = async () => {
-  console.log("Running all test cases...");
+      const results = await Promise.all(
+        testCases.map(async (tc, idx) => {
+          const res = await axios.post(
+            `${import.meta.env.VITE_BACKEND_URL}/api/code/run`,
+            { code, language, input: tc.input, expected_output: tc.output },
+            { withCredentials: true }
+          );
 
-  try {
-    const testCases = question.runTestCases; // array of { input, output }
+          const computed_output = (res.data.stdout || "").trim();
+          const expected_output = (tc.expected_output || "").trim();
+          const passed = computed_output === expected_output;
+          const errorMsg = res.data.error || res.data.stderr || null;
 
-    // Run all test cases in parallel
-    const results = await Promise.all(
-      testCases.map(async (tc, idx) => {
-        const res = await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL}/api/code/run`,
-          {
-            code,
-            language,
+          return {
+            index: idx + 1,
             input: tc.input,
-            expected_output: tc.output
-          },
-          { withCredentials: true }
-        );
+            expected_output,
+            computed_output,
+            passed: errorMsg ? false : passed,
+            error: errorMsg,
+          };
+        })
+      );
 
-        const computed_output = (res.data.stdout || "").trim();
-        const expected_output = (tc.expected_output || "").trim();
-        const passed = computed_output === expected_output;
+      const passedCount = results.filter((r) => r.passed).length;
+      alert(`${passedCount} / ${results.length} test cases passed!`);
 
-        // If backend returned error or stderr, mark as failed
-        const errorMsg = res.data.error || res.data.stderr || null;
-
-        return {
-          index: idx + 1,
-          input: tc.input,
-          expected_output,
-          computed_output,
-          passed: errorMsg ? false : passed,
-          error: errorMsg
-        };
-      })
-    );
-
-    // Show results in console table
-    console.table(
-      results.map(r => ({
-        TestCase: r.index,
-        Passed: r.passed,
-        "Expected Output": r.expected_output,
-        "Computed Output": r.computed_output,
-        Error: r.error
-      }))
-    );
-
-    // Alert summary
-    const passedCount = results.filter(r => r.passed).length;
-    alert(`${passedCount} / ${results.length} test cases passed!`);
-
-    // Optionally, display errors in UI (example using alert for now)
-    const failedCases = results.filter(r => r.error);
-    if (failedCases.length > 0) {
-      let errMsg = "Errors in following test cases:\n";
-      failedCases.forEach(r => {
-        errMsg += `Test ${r.index}: ${r.error}\n`;
-      });
-      alert(errMsg);
+      const failedCases = results.filter((r) => r.error);
+      if (failedCases.length > 0) {
+        let errMsg = "Errors in following test cases:\n";
+        failedCases.forEach((r) => {
+          errMsg += `Test ${r.index}: ${r.error}\n`;
+        });
+        alert(errMsg);
+      }
+    } catch (err) {
+      console.error("Run error:", err);
+      alert("Error executing one or more test cases.");
     }
-
-  } catch (err) {
-    console.error("Run error:", err);
-    alert("Error executing one or more test cases.");
-  }
-};
-
+  };
 
   const handleSubmit = async () => {
     try {

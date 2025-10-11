@@ -1,80 +1,88 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
-import { initialData } from "./initialData";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
 
-export default function WhiteboardPanel({ initialWhiteboard }) {
+export default function WhiteboardPanel() {
   const excalidrawRef = useRef(null);
   const socket = useCollabSocket();
-  const [elements, setElements] = useState(initialWhiteboard || initialData?.elements || []);
 
-  const debounceTimeout = useRef(null); // ✅ store timeout for debounce
-  const lastSentElements = useRef([]); // ✅ prevent feedback loop
+  const [elements, setElements] = useState([]);
+  const lastSentElements = useRef([]);
+  const [ready, setReady] = useState(false); // flag to check Excalidraw mount
+  const debounceTimeout = useRef(null);
 
-  // Dynamically load external Excalidraw libraries
+  // Wait for Excalidraw to mount
+  const onExcalidrawMount = () => setReady(true);
+
+  // Handle initial state from backend
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://libraries.excalidraw.com/?useHash=true&theme=dark";
-    script.async = true;
-    document.body.appendChild(script);
+    if (!socket) return;
 
-    return () => {
-      document.body.removeChild(script);
+    const handleInitialState = (data) => {
+      console.log("whiteboard: ",data)
+      const newElements = Array.isArray(data?.whiteboard) ? data.whiteboard : [];
+      lastSentElements.current = newElements;
+      setElements(newElements);
+
+      // Only call updateScene if Excalidraw is ready
+      if (ready && excalidrawRef.current?.updateScene) {
+        excalidrawRef.current.updateScene({ elements: newElements });
+      }
     };
-  }, []);
 
-  // Listen for remote updates from socket
+    socket.on("load-initial-state", handleInitialState);
+    return () => socket.off("load-initial-state", handleInitialState);
+  }, [socket, ready]);
+
+  // Remote updates
   useEffect(() => {
     if (!socket) return;
 
     const handleRemoteUpdate = ({ whiteboard: newElements }) => {
-      if (!excalidrawRef.current) return;
+      if (!Array.isArray(newElements)) return;
+      if (JSON.stringify(newElements) === JSON.stringify(lastSentElements.current)) return;
 
-      const api = excalidrawRef.current;
-      api.updateScene({ elements: newElements });
+      lastSentElements.current = newElements;
       setElements(newElements);
-      lastSentElements.current = newElements; // ✅ update last sent
+
+      if (ready && excalidrawRef.current?.updateScene) {
+        excalidrawRef.current.updateScene({ elements: newElements });
+      }
     };
 
     socket.on("whiteboard-update", handleRemoteUpdate);
+    return () => socket.off("whiteboard-update", handleRemoteUpdate);
+  }, [socket, ready]);
 
-    return () => {
-      socket.off("whiteboard-update", handleRemoteUpdate);
-    };
-  }, [socket]);
+  // Local changes -> debounced emit
+  const handleChange = (updatedElementsOrState) => {
+    const updatedElements = Array.isArray(updatedElementsOrState)
+      ? updatedElementsOrState
+      : updatedElementsOrState?.elements ?? [];
 
-  // Debounced send updates to others whenever local user draws
-  const handleChange = (updatedElements) => {
     setElements(updatedElements);
 
     if (!socket) return;
-
-    // Clear previous timeout
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 
-    // Set new timeout
     debounceTimeout.current = setTimeout(() => {
-      // Avoid feedback loop
       if (JSON.stringify(updatedElements) !== JSON.stringify(lastSentElements.current)) {
         lastSentElements.current = updatedElements;
         socket.emit("whiteboard-change", { whiteboard: updatedElements });
       }
-    }, 300); // 300ms debounce delay
+    }, 300);
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    };
-  }, []);
+  // Cleanup debounce
+  useEffect(() => () => debounceTimeout.current && clearTimeout(debounceTimeout.current), []);
 
   return (
     <div className="w-full h-[90vh] overflow-auto bg-gray-50 rounded-md">
       <Excalidraw
         ref={excalidrawRef}
-        initialData={{ elements }}
+        initialData={{ elements }} // can start empty or initialData={{ elements: [] }}
         onChange={handleChange}
+        onPointerUpdate={onExcalidrawMount} // trigger ready after mount
       />
     </div>
   );
