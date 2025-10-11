@@ -69,7 +69,7 @@ const addQuestionWithLink = async (req, res) => {
 };
 
 /**
- * 🔹 Get all questions for a given assessment
+ *  Get all questions for a given assessment
  */
 const getAllAssessmentQuestions = async (req, res) => {
   try {
@@ -124,7 +124,7 @@ const getQuestionById = async (req, res) => {
 };
 
 /**
- * 🔹 Delete a specific question
+ *  Delete a specific question
  */
 const deleteQuestion = async (req, res) => {
   try {
@@ -141,7 +141,7 @@ const deleteQuestion = async (req, res) => {
 };
 
 /**
- * 🔹 Optional: Run candidate code against testcases
+ *  Optional: Run candidate code against testcases
  * (For later - when you integrate code execution service)
  */
 const runCandidateCode = async (req, res) => {

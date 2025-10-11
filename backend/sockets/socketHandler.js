@@ -1,14 +1,14 @@
 const userSocketMap = {}; // optional: track userId -> socket.id
 
 module.exports = (io, socket) => {
-  console.log("New socket connected:", socket.id);
+  console.log("New video socket connected:", socket.id);
 
   socket.on("join-room", ({ roomId, userId }) => {
     // (optional) userId -> socketId)
     if (userId) userSocketMap[userId] = socket.id;
 
     socket.join(roomId);
-    console.log(`${userId || socket.id} joined room ${roomId} (socket: ${socket.id})`);
+    console.log(`${userId || socket.id} joined video room ${roomId} (socket: ${socket.id})`);
 
     // 1) Get all socket ids already in the room (if any)
     const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
@@ -37,7 +37,7 @@ module.exports = (io, socket) => {
 
     // When this socket disconnects
     socket.on("disconnect", () => {
-      console.log(`${userId || socket.id} disconnected (socket: ${socket.id})`);
+      console.log(`${userId || socket.id} disconnected from video room (socket: ${socket.id})`);
       // remove mapping if present
       if (userId && userSocketMap[userId]) delete userSocketMap[userId];
       // notify others in the room
