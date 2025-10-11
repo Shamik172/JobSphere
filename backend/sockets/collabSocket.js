@@ -55,7 +55,7 @@ module.exports = (io) => {
         socket.emit("load-initial-state", {
           code: attempt.final_code || "",
           whiteboard: attempt.final_whiteboard_data || [],
-        });
+        },console.log("initial state emitted from backend"));
 
         // Handle real-time code changes
         socket.on("code-change", async (data) => {
@@ -73,17 +73,20 @@ module.exports = (io) => {
 
         // Handle whiteboard changes
         socket.on("whiteboard-change", async (data) => {
+          const plainElements = data.whiteboard.map(el => JSON.parse(JSON.stringify(el))); // convert to plain objects
           socket.to(roomKey).emit("whiteboard-update", data);
+
           await Attempt.updateOne(
             { _id: attempt._id },
             {
-              $set: { final_whiteboard_data: data.whiteboard },
+              $set: { final_whiteboard_data: plainElements },
               $push: {
                 whiteboard_events: { timestamp: new Date(), event_data: data },
               },
             }
           );
         });
+
 
         // Clean up on disconnect
         socket.on("disconnect", () => {

@@ -1,34 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import CodingPanel from "./coding/CodingPanel";
 import WhiteboardPanel from "./whiteboard/WhiteboardPanel";
 import VideoCallWindow from "./videocall/VideoCallWindow";
 import { X, ArrowLeft } from "lucide-react";
-import { CollabSocketProvider } from "../../context/CollabSocketContext";
+import { CollabSocketProvider, useCollabSocket } from "../../context/CollabSocketContext";
 
 const CodingAndWhiteboard = () => {
-  const {assessmentId, roomId, questionId} = useParams();
-  console.log("coding and white: ",useParams())
-  
+  const { assessmentId, roomId, questionId } = useParams();
+  const navigate = useNavigate();
+  const socket = useCollabSocket();
+
   const [mode, setMode] = useState("coding");
   const [showVideo, setShowVideo] = useState(true);
 
-  const location = useLocation();
-  const navigate = useNavigate();
+  // Store initial state from backend
+  const [initialCode, setInitialCode] = useState("");
+  const [initialWhiteboard, setInitialWhiteboard] = useState([]);
 
-  // get the passed question data
-  // const question = location.state?.questio  // // get the passed question data
-  // const question = location.state?.question;n;
+  // Listen for "load-initial-state" from backend
+  useEffect(() => {
+    console.log("socket in CodingAndWhiteboard : ", socket)
+    if (!socket) return;
+
+    const handleInitialState = (data) => {
+      console.log("📩 Received load-initial-state:", data);
+      setInitialCode(data.code || "");
+      setInitialWhiteboard(data.whiteboard || []);
+      console.log(data)
+    };
+
+    socket.on("load-initial-state", handleInitialState);
+
+    return () => {
+      socket.off("load-initial-state", handleInitialState);
+    };
+  }, [socket]);
 
   return (
-    <CollabSocketProvider>
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-100 via-blue-200 to-purple-200 border border-white/30 rounded-xl shadow-xl overflow-hidden relative">
 
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-3 bg-white/60 backdrop-blur-md border-b border-white/50 shadow-md z-10">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)} // go back to video call page
+            onClick={() => navigate(-1)}
             className="p-2 rounded-full hover:bg-gray-200 transition"
           >
             <ArrowLeft size={18} className="text-indigo-700" />
@@ -58,9 +74,9 @@ const CodingAndWhiteboard = () => {
       {/* Main Content */}
       <div className="flex-1 flex mt-0.5 bg-white/50 backdrop-blur-sm border-t border-white/30 overflow-hidden rounded-b-xl">
         {mode === "coding" ? (
-          questionId && <CodingPanel questionId={questionId} /> // pass the question here
+          <CodingPanel questionId={questionId} initialCode={initialCode} />
         ) : (
-          <WhiteboardPanel />
+          <WhiteboardPanel initialWhiteboard={initialWhiteboard} />
         )}
       </div>
 
@@ -75,12 +91,15 @@ const CodingAndWhiteboard = () => {
               <X size={16} />
             </button>
           </div>
-          <VideoCallWindow roomId={roomId}/>
+          <VideoCallWindow roomId={roomId} />
         </div>
       )}
     </div>
-    </CollabSocketProvider>
   );
 };
 
-export default CodingAndWhiteboard;
+export default () => (
+  <CollabSocketProvider>
+    <CodingAndWhiteboard />
+  </CollabSocketProvider>
+);

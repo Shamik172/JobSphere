@@ -10,7 +10,7 @@ export const useCollabSocket = () => useContext(CollabSocketContext);
 export const CollabSocketProvider = ({ children }) => {
   const { assessmentId, questionId } = useParams();
   const { user } = useAuth?.() || {};
-  const candidateId = user?._id || "anonymous";
+  const candidateId = user?._id || "68dbad15fb53a87ba397bcca";
 
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
