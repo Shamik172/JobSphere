@@ -4,53 +4,67 @@ import axios from "axios";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  const isLoggedIn = !!user;
 
-  // Verify token on mount
-  useEffect(() => {
-    const verifyUser = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/verify`, {
-          withCredentials: true, // send cookies
-        });
-
-        if (res.data.loggedIn) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-        }
-      } catch (err) {
-        setIsLoggedIn(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    verifyUser();
-  }, []);
-
-  // Login just re-verifies token
-  const login = async () => {
+  const verifyAuth = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/verify`, { withCredentials: true });
-      setIsLoggedIn(res.data.loggedIn);
-    } catch {
-      setIsLoggedIn(false);
+      // First, try to verify as an interviewer
+      const interviewerRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/verify`, {
+        withCredentials: true,
+      });
+      if (interviewerRes.data.loggedIn) {
+        setUser(interviewerRes.data.user);
+        setLoading(false);
+        return;
+      }
+
+      // If not an interviewer, try to verify as a candidate
+      const candidateRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/candidate/verify`, {
+        withCredentials: true,
+      });
+      if (candidateRes.data.loggedIn) {
+        setUser(candidateRes.data.user);
+        setLoading(false);
+        return;
+      }
+      
+      setUser(null);
+    } catch (err) {
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Logout clears cookie on server
-  const logout = async () => {
-    await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/logout`, {}, { withCredentials: true });
-    setIsLoggedIn(false);
+  useEffect(() => {
+    verifyAuth();
+  }, []);
+
+  const login = async () => {
+    await verifyAuth();
   };
 
+  const logout = async () => {
+    if (!user) return;
+    try {
+      const endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/${user.role}/logout`;
+      await axios.post(endpoint, {}, { withCredentials: true });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      setUser(null);
+    }
+  };
+  
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout, loading }}>
-      {children}
+    <AuthContext.Provider value={{ user, isLoggedIn, login, logout, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => useContext(AuthContext);
+

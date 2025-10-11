@@ -13,6 +13,8 @@ const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
+const candidateRoutes = require("./routes/candidateRoutes");
+
 const codeRoutes = require("./routes/codeRoutes");
 const problemRoutes = require('./routes/problemRoutes')
 const collabHandler = require("./sockets/collabSocket")
@@ -55,8 +57,7 @@ app.use("/api/questions", QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
 app.use("/api/interviewer", interviewerRoutes);
-
-
+app.use("/api/candidate", candidateRoutes);
 
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));

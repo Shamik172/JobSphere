@@ -1,17 +1,35 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "./context/AuthContext";
-import { Lock, Mail } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "./context/AuthContext.jsx";
+import { Lock, Mail, User } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  
+  // Smart Initialization: Check for a userType passed from another page.
+  const initialUserType = location.state?.userType || 'interviewer';
+  const [userType, setUserType] = useState(initialUserType);
+
   const [form, setForm] = useState({ email: "", password: "" });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(location.state?.message || ""); 
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const from = location.state?.from?.pathname || (userType === 'interviewer' ? '/' : '/assessment');
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleUserTypeToggle = () => {
+    setUserType(prev => prev === "interviewer" ? "candidate" : "interviewer");
+    setMessage("");
   };
 
   const handleSubmit = async (e) => {
@@ -20,7 +38,8 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/interviewer/login`, {
+      const apiEndpoint = `${import.meta.env.VITE_BACKEND_URL}/api/${userType}/login`;
+      const res = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -28,106 +47,57 @@ const Login = () => {
       });
 
       const data = await res.json();
-
       if (res.ok) {
         await login();
-        navigate("/");
+        navigate(from, { replace: true });
       } else {
         setMessage(data.message || "Login failed");
       }
     } catch (err) {
-      console.error(err);
       setMessage("Server error — please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  const isInterviewer = userType === "interviewer";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-200 via-blue-600 to-purple-600 flex items-center justify-center px-4">
-      {/* Glassy Login Card */}
-      <div className="bg-white/40 backdrop-blur-2xl border border-white/30 rounded-2xl p-10 shadow-[0_0_50px_rgba(255,255,255,0.2)] w-full max-w-md text-center text-gray-800">
-        {/* Logo / Title */}
-        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent">
-          JobSphere
-        </h1>
-        <p className="text-sm text-gray-700 mb-8">
-          Streamline your hiring with smart, collaborative assessments
+    <div className="min-h-screen bg-gradient-to-br from-indigo-200 to-purple-600 flex items-center justify-center p-4">
+      <div className="bg-white/40 backdrop-blur-xl border border-white/30 rounded-2xl p-8 shadow-2xl w-full max-w-md">
+        <h1 className="text-4xl font-bold text-center mb-2 text-gray-800">JobSphere</h1>
+        <p className="text-center text-gray-700 mb-8">
+          {isInterviewer ? "Interviewer Portal" : "Candidate Portal"}
         </p>
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {/* Email Input */}
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 text-indigo-1000" size={18} />
-            <input
-              name="email"
-              placeholder="Email address"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              className="w-full bg-white/50 backdrop-blur-sm text-gray-800 placeholder-gray-500 rounded-xl py-3 pl-10 pr-3 border border-white/50 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-              required
-            />
-          </div>
-
-          {/* Password Input */}
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 text-indigo-1000" size={18} />
-            <input
-              name="password"
-              placeholder="Password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              className="w-full bg-white/50 backdrop-blur-sm text-gray-800 placeholder-gray-500 rounded-xl py-3 pl-10 pr-3 border border-white/50 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-              required
-            />
-          </div>
-
-          {/* Login Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-3 rounded-xl font-semibold text-lg tracking-wide text-white shadow-md transition ${
-              loading
-                ? "bg-indigo-300 cursor-not-allowed"
-                : "bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 hover:scale-[1.01] active:scale-[0.98]"
-            }`}
-          >
-            {loading ? "Logging in..." : "Login"}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} /><input name="email" type="email" placeholder="Email" required onChange={handleChange} className="w-full pl-10 pr-4 py-2 bg-white/50 rounded-lg border border-white/50 focus:ring-2 focus:ring-indigo-400 focus:outline-none"/></div>
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} /><input name="password" type="password" placeholder="Password" required onChange={handleChange} className="w-full pl-10 pr-4 py-2 bg-white/50 rounded-lg border border-white/50 focus:ring-2 focus:ring-indigo-400 focus:outline-none"/></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition disabled:bg-indigo-400 disabled:cursor-not-allowed">
+            {loading ? "Logging In..." : "Login"}
           </button>
         </form>
 
-        {/* Forgot Password Link */}
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => navigate("/forgot-password")}
-            className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline transition"
-          >
-            Forgot Password?
-          </button>
-        </div>
+        {message && <p className={`mt-4 text-center font-medium ${message.includes("failed") || message.includes("error") ? "text-red-600" : "text-green-600"}`}>{message}</p>}
 
-        {/* Error Message */}
-        {message && (
-          <p className="mt-4 text-red-600 font-medium">{message}</p>
-        )}
-
-        {/* Bottom Link */}
-        <div className="mt-3 text-sm text-gray-700">
-          New here?{" "}
-          <button
-            onClick={() => navigate("/signup")}
-            className="text-indigo-700 font-semibold hover:underline hover:text-indigo-800"
-          >
-            Create an account
-          </button>
+        <div className="mt-6 text-center">
+            <button onClick={handleUserTypeToggle} className="text-sm text-indigo-700 hover:underline">
+                {isInterviewer ? "Login as a Candidate" : "Login as an Interviewer"}
+            </button>
         </div>
+        
+        <div className="mt-4 pt-4 border-t border-white/30 text-center text-sm text-gray-700">
+            Don't have an account?{" "}
+            <button 
+                onClick={() => navigate('/signup', { state: { userType: userType } })} 
+                className="font-semibold text-indigo-800 hover:underline"
+            >
+                Sign Up
+            </button>
+        </div>
+        
       </div>
     </div>
   );
 };
-
 export default Login;
+
