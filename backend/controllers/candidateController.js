@@ -10,7 +10,7 @@ const generateToken = (id, role) => {
 exports.signup = async (req, res) => {
   try {
     const { name, email, password, resume_url, portfolio_url } = req.body;
-
+    console.log(req.body)
     const existingUser = await Candidate.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
