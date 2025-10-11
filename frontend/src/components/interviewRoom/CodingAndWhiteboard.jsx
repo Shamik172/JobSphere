@@ -4,6 +4,7 @@ import CodingPanel from "./coding/CodingPanel";
 import WhiteboardPanel from "./whiteboard/WhiteboardPanel";
 import VideoCallWindow from "./videocall/VideoCallWindow";
 import { X, ArrowLeft } from "lucide-react";
+import { CollabSocketProvider } from "../../context/CollabSocketContext";
 
 const CodingAndWhiteboard = () => {
   const {assessmentId, roomId, questionId} = useParams();
@@ -20,6 +21,7 @@ const CodingAndWhiteboard = () => {
   // const question = location.state?.question;n;
 
   return (
+    <CollabSocketProvider>
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-100 via-blue-200 to-purple-200 border border-white/30 rounded-xl shadow-xl overflow-hidden relative">
 
       {/* Header */}
@@ -77,6 +79,7 @@ const CodingAndWhiteboard = () => {
         </div>
       )}
     </div>
+    </CollabSocketProvider>
   );
 };
 
