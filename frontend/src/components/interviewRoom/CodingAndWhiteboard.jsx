@@ -26,30 +26,26 @@ const CodingAndWhiteboard = () => {
           </h1>
         </div>
 
-        {mode === "coding" ? (
-          <button
-            onClick={() => setMode("whiteboard")}
-            className="px-4 py-2 text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
-          >
-            Go to Whiteboard
-          </button>
-        ) : (
-          <button
-            onClick={() => setMode("coding")}
-            className="px-4 py-2 text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-gray-500 to-gray-600 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
-          >
-            Back to Coding
-          </button>
-        )}
+        <button
+          onClick={() => setMode(mode === "coding" ? "whiteboard" : "coding")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg text-white transition-all shadow-md hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] ${
+            mode === "coding"
+              ? "bg-gradient-to-r from-indigo-500 to-blue-500"
+              : "bg-gradient-to-r from-gray-500 to-gray-600"
+          }`}
+        >
+          {mode === "coding" ? "Go to Whiteboard" : "Back to Coding"}
+        </button>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Keep both components mounted */}
       <div className="flex-1 flex mt-0.5 bg-white/50 backdrop-blur-sm border-t border-white/30 overflow-hidden rounded-b-xl">
-        {mode === "coding" ? (
+        <div className={`flex-1 ${mode === "coding" ? "block" : "hidden"}`}>
           <CodingPanel questionId={questionId} />
-        ) : (
+        </div>
+        <div className={`flex-1 ${mode === "whiteboard" ? "block" : "hidden"}`}>
           <WhiteboardPanel />
-        )}
+        </div>
       </div>
 
       {/* Floating Video Call Window */}
