@@ -14,6 +14,7 @@ const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
 const codeRoutes = require("./routes/codeRoutes");
+const problemRoutes = require('./routes/problemRoutes')
 const collabHandler = require("./sockets/collabSocket")
 
 
@@ -47,6 +48,8 @@ app.use(cookieParser());
 // app.get("/", (req,res) => {
 //   res.send("hello")
 // });
+
+app.use('/api/problem', problemRoutes);
 
 app.use("/api/questions", QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);

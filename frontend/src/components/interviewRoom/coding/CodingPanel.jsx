@@ -23,7 +23,7 @@ const CodingPanel = ({ questionId }) => {
       console.log("question fetch", questionId)
       try {
         setLoading(true);
-        setError(null);setCall(true);
+        setError(null); setCall(true);
         const res = await axios.get(
           `${import.meta.env.VITE_BACKEND_URL}/api/questions/${questionId}`,
           { withCredentials: true }
@@ -118,19 +118,77 @@ const CodingPanel = ({ questionId }) => {
     return () => clearInterval(interval);
   }, [attemptId, code]);
 
-  const handleRun = async () => {
-    try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/questions/run`,
-        { code, language, questionId },
-        { withCredentials: true }
-      );
-      alert(res.data.result || "Code executed!");
-    } catch (err) {
-      console.error("Run error:", err);
-      alert("Error executing code.");
+  // 🔹 Handle code execution and submission (mock for now)
+
+const handleRun = async () => {
+  console.log("Running all test cases...");
+
+  try {
+    const testCases = question.runTestCases; // array of { input, output }
+
+    // Run all test cases in parallel
+    const results = await Promise.all(
+      testCases.map(async (tc, idx) => {
+        const res = await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}/api/code/run`,
+          {
+            code,
+            language,
+            input: tc.input,
+            expected_output: tc.output
+          },
+          { withCredentials: true }
+        );
+
+        const computed_output = (res.data.stdout || "").trim();
+        const expected_output = (tc.expected_output || "").trim();
+        const passed = computed_output === expected_output;
+
+        // If backend returned error or stderr, mark as failed
+        const errorMsg = res.data.error || res.data.stderr || null;
+
+        return {
+          index: idx + 1,
+          input: tc.input,
+          expected_output,
+          computed_output,
+          passed: errorMsg ? false : passed,
+          error: errorMsg
+        };
+      })
+    );
+
+    // Show results in console table
+    console.table(
+      results.map(r => ({
+        TestCase: r.index,
+        Passed: r.passed,
+        "Expected Output": r.expected_output,
+        "Computed Output": r.computed_output,
+        Error: r.error
+      }))
+    );
+
+    // Alert summary
+    const passedCount = results.filter(r => r.passed).length;
+    alert(`${passedCount} / ${results.length} test cases passed!`);
+
+    // Optionally, display errors in UI (example using alert for now)
+    const failedCases = results.filter(r => r.error);
+    if (failedCases.length > 0) {
+      let errMsg = "Errors in following test cases:\n";
+      failedCases.forEach(r => {
+        errMsg += `Test ${r.index}: ${r.error}\n`;
+      });
+      alert(errMsg);
     }
-  };
+
+  } catch (err) {
+    console.error("Run error:", err);
+    alert("Error executing one or more test cases.");
+  }
+};
+
 
   const handleSubmit = async () => {
     try {

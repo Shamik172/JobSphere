@@ -8,7 +8,7 @@ const testCaseSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         required: true,
     },
-    output: {
+     expected_output: {
         type: mongoose.Schema.Types.Mixed,
         required: true,
     }

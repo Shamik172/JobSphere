@@ -4,7 +4,7 @@ const path = require("path");
 
 // Helper to execute code for different languages
 const runCodeByLanguage = (code, language, input) => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const timestamp = Date.now();
     let filename, command;
 
@@ -25,6 +25,7 @@ const runCodeByLanguage = (code, language, input) => {
         filename = path.join(__dirname, `temp_${timestamp}.cpp`);
         const exeFile = path.join(__dirname, `temp_${timestamp}.out`);
         fs.writeFileSync(filename, code);
+        // compile and run in one command
         command = `g++ "${filename}" -o "${exeFile}" && "${exeFile}"`;
         break;
 
@@ -37,21 +38,21 @@ const runCodeByLanguage = (code, language, input) => {
         break;
 
       default:
-        return reject(`Language ${language} not supported`);
+        return resolve({ error: `Language ${language} not supported` });
     }
 
     const child = exec(command, { timeout: 5000 }, (error, stdout, stderr) => {
       // Cleanup temp files
       try { fs.unlinkSync(filename); } catch {}
       if (language === "cpp") {
-        try { fs.unlinkSync(path.join(__dirname, `temp_${timestamp}.out`)); } catch {}
+        try { fs.unlinkSync(exeFile); } catch {}
       }
       if (language === "java") {
         try { fs.unlinkSync(path.join(__dirname, `${className}.class`)); } catch {}
       }
 
-      if (error) return reject(stderr || error.message);
-      resolve(stdout);
+      // Send both stdout and stderr
+      resolve({ stdout: stdout.trim(), stderr: stderr.trim(), error: error ? error.message : null });
     });
 
     child.stdin.write(input);
@@ -59,36 +60,29 @@ const runCodeByLanguage = (code, language, input) => {
   });
 };
 
+
 // Controller
 exports.runCode = async (req, res) => {
-  const { code, language, input, expectedOutput } = req.body;
+  const { code, language, input } = req.body;
 
-  if (!code || !language || !input || !expectedOutput) {
+  if (!code || !language) {
     return res.status(400).json({ success: false, message: "Missing fields" });
   }
 
   try {
-    const output = await runCodeByLanguage(code, language, input);
-    const actualOutput = output.trim();
-    const expected = expectedOutput.trim();
-
-    let passed = false;
-
-    // Try JSON parse for arrays/objects
-    try {
-      const actualJSON = JSON.parse(actualOutput);
-      const expectedJSON = JSON.parse(expected);
-      passed = JSON.stringify(actualJSON) === JSON.stringify(expectedJSON);
-    } catch {
-      passed = actualOutput === expected;
-    }
-
+    const result = await runCodeByLanguage(code, language, input);
+    console.log(result)
     res.json({
-      success: true,
-      passed,
-      output: actualOutput,
+      success: !result.error && !result.stderr, // true if no runtime/compile error
+      stdout: result.stdout,
+      stderr: result.stderr,
+      error: result.error,
     });
   } catch (err) {
-    res.json({ success: false, error: err.toString() });
+    res.json({
+      success: false,
+      stdout: "",
+      stderr: err.toString(),
+    });
   }
 };
