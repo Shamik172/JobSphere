@@ -7,10 +7,7 @@ const router = express.Router();
 
 router.post("/addQuestionWithLink", protect , addQuestionWithLink);
 router.get('/assessment/:assessment_id' ,getAllAssessmentQuestions);
-router.get('/:questionId', ( req,res,next) => {
-  console.log("sumanta byasdi")
-  next()
-},getQuestionById);
+router.get('/:questionId',getQuestionById);
 
 module.exports = router;
 

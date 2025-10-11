@@ -8,14 +8,13 @@ const cookieParser = require("cookie-parser");
 
 
 //local imports
-
 const authRoutes = require("./routes/authRoutes");
 const QuestionFetchRouter = require("./routes/QuestionFetchRouter");
 const socketHandler = require("./sockets/socketHandler");
 const assessmentRoutes = require("./routes/AssessmentRoutes");
 const interviewerRoutes = require("./routes/interviewerRoutes");
 const codeRoutes = require("./routes/codeRoutes");
-
+const collabHandler = require("./sockets/collabSocket")
 
 
 require("dotenv").config();
@@ -25,7 +24,11 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: { 
+    origin: "*", 
+    methods: ["GET", "POST"], 
+    credentials: true,
+  },
 });
 
 app.use(cors(
@@ -54,6 +57,7 @@ app.use("/api/interviewer", interviewerRoutes);
 
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));
+collabHandler(io);
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);

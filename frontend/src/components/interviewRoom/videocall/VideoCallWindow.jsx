@@ -25,7 +25,6 @@ export default function VideoCallWindow({ roomId, userId }) {
   const pendingCandidatesRef = useRef({}); // socketId -> [candidate,...]
 
   // helper to add peer into refs + state
-  // helper to add peer into refs + state
   const addPeerToState = (socketId, pc, meta = {}) => {
     peersRef.current[socketId] = pc;
     setPeers(prev => ({ ...prev, [socketId]: { pc, ...meta } }));
