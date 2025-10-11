@@ -3,10 +3,13 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import { initialData } from "./initialData";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
 
-export default function WhiteboardPanel() {
+export default function WhiteboardPanel({ initialWhiteboard }) {
   const excalidrawRef = useRef(null);
   const socket = useCollabSocket();
-  const [elements, setElements] = useState(initialData?.elements || []);
+  const [elements, setElements] = useState(initialWhiteboard || initialData?.elements || []);
+
+  const debounceTimeout = useRef(null); // ✅ store timeout for debounce
+  const lastSentElements = useRef([]); // ✅ prevent feedback loop
 
   // Dynamically load external Excalidraw libraries
   useEffect(() => {
@@ -24,11 +27,13 @@ export default function WhiteboardPanel() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleRemoteUpdate = ({ elements: newElements }) => {
+    const handleRemoteUpdate = ({ whiteboard: newElements }) => {
       if (!excalidrawRef.current) return;
+
       const api = excalidrawRef.current;
-      api.updateScene({ elements: newElements }); // update whiteboard view
+      api.updateScene({ elements: newElements });
       setElements(newElements);
+      lastSentElements.current = newElements; // ✅ update last sent
     };
 
     socket.on("whiteboard-update", handleRemoteUpdate);
@@ -38,21 +43,37 @@ export default function WhiteboardPanel() {
     };
   }, [socket]);
 
-  // Send updates to others whenever local user draws
-  const handleChange = (updatedElements, appState, files) => {
+  // Debounced send updates to others whenever local user draws
+  const handleChange = (updatedElements) => {
     setElements(updatedElements);
 
-    // send minimal payload to keep it lightweight
-    if (socket) {
-      socket.emit("whiteboard-update", { elements: updatedElements });
-    }
+    if (!socket) return;
+
+    // Clear previous timeout
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+
+    // Set new timeout
+    debounceTimeout.current = setTimeout(() => {
+      // Avoid feedback loop
+      if (JSON.stringify(updatedElements) !== JSON.stringify(lastSentElements.current)) {
+        lastSentElements.current = updatedElements;
+        socket.emit("whiteboard-change", { whiteboard: updatedElements });
+      }
+    }, 300); // 300ms debounce delay
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, []);
 
   return (
     <div className="w-full h-[90vh] overflow-auto bg-gray-50 rounded-md">
       <Excalidraw
         ref={excalidrawRef}
-        initialData={initialData}
+        initialData={{ elements }}
         onChange={handleChange}
       />
     </div>

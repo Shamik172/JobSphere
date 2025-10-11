@@ -5,16 +5,27 @@ import CodeEditor from "./codingComponents/CodeEditor";
 import SubmissionControls from "./codingComponents/SubmissionControls";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
 
-const CodingPanel = ({ questionId }) => {
+const CodingPanel = ({ questionId, initialCode}) => {
   const [language, setLanguage] = useState("javascript");
   const [question, setQuestion] = useState(null);
-  const [code, setCode] = useState("// Loading code...");
+  const [code, setCode] = useState(initialCode || `// Write your ${language} code here...`);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const debounceTimeout = useRef(null);
   
   const socket = useCollabSocket();
   const lastSentCode = useRef(""); // prevent loops of re-emits
-  const [attemptId, setAttemptId] = useState(null);
+  // const [attemptId, setAttemptId] = useState(null);
+
+  // Set initial code from parent prop
+  useEffect(() => {
+    if (initialCode) {
+      setCode(initialCode);
+      lastSentCode.current = initialCode; // prevent feedback loops
+    }
+  }, [initialCode]);
+
 
   // Fetch question and attempt state
   const [call, setCall] = useState(false);
@@ -42,6 +53,15 @@ const CodingPanel = ({ questionId }) => {
     console.log("me call karu")
     fetchQuestion();
   }
+
+  useEffect(() => {
+    if (!code || code.startsWith("// Write") || code.startsWith("# Write")) {
+      const commentSyntax = language.toLowerCase() === "python" ? "#" : "//";
+      setCode(`${commentSyntax} Write your ${language} code here...`);
+    }
+  }, [language]);
+
+
   // useEffect(() => {
   //   const fetchQuestionAndAttempt = async () => {
   //     try {
@@ -74,12 +94,13 @@ const CodingPanel = ({ questionId }) => {
   //   if (questionId) fetchQuestionAndAttempt();
   // }, [questionId]);
 
+
+
   // 🧠 Listen for incoming code updates from socket
   useEffect(() => {
     if (!socket) return;
 
-    const handleRemoteCodeUpdate = ({ newCode }) => {
-      // Avoid feedback loop
+    const handleRemoteCodeUpdate = ({ code: newCode }) => {
       if (newCode !== lastSentCode.current) {
         setCode(newCode);
       }
@@ -92,33 +113,39 @@ const CodingPanel = ({ questionId }) => {
   // Handle local edits -> broadcast via socket
   const handleCodeChange = (value) => {
     setCode(value);
-    if (!socket || !value) return;
+    if (!socket) return;
 
-    // prevent flooding (optional: debounce later)
-    if (value !== lastSentCode.current) {
-      lastSentCode.current = value;
-      socket.emit("code-update", { newCode: value, questionId });
-    }
+    // Clear previous timeout
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+
+    // Set a new timeout
+    debounceTimeout.current = setTimeout(() => {
+      if (value !== lastSentCode.current) {
+        lastSentCode.current = value;
+        socket.emit("code-change", { code: value, questionId });
+      }
+    }, 300); // 300ms debounce delay (adjust as needed)
   };
 
-  // Auto-save attempt on interval (every 5s)
-  useEffect(() => {
-    if (!attemptId) return;
-    const interval = setInterval(async () => {
-      try {
-        await axios.put(
-          `${import.meta.env.VITE_BACKEND_URL}/api/attempts/${attemptId}`,
-          { final_code: code },
-          { withCredentials: true }
-        );
-      } catch (err) {
-        console.warn("Autosave failed:", err);
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [attemptId, code]);
 
-  // 🔹 Handle code execution and submission (mock for now)
+  // Auto-save attempt on interval (every 5s)
+  // useEffect(() => {
+  //   if (!attemptId) return;
+  //   const interval = setInterval(async () => {
+  //     try {
+  //       await axios.put(
+  //         `${import.meta.env.VITE_BACKEND_URL}/api/attempts/${attemptId}`,
+  //         { final_code: code },
+  //         { withCredentials: true }
+  //       );
+  //     } catch (err) {
+  //       console.warn("Autosave failed:", err);
+  //     }
+  //   }, 5000);
+  //   return () => clearInterval(interval);
+  // }, [attemptId, code]);
+
+  // Handle code execution and submission (mock for now)
 
 const handleRun = async () => {
   console.log("Running all test cases...");

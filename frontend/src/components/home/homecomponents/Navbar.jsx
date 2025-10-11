@@ -24,7 +24,7 @@ export default function Navbar() {
         </nav>
       </div>
       <div className="flex items-center gap-4">
-        <a className="hidden md:inline-block text-sm" href="/login">
+        <a className="hidden md:inline-block text-sm" href="/login/candidate">
           Login
         </a>
         <a
