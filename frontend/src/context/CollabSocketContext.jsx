@@ -1,10 +1,10 @@
+// context/CollabSocketContext.jsx
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import { useParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 const CollabSocketContext = createContext(null);
-
 export const useCollabSocket = () => useContext(CollabSocketContext);
 
 export const CollabSocketProvider = ({ children }) => {
@@ -16,9 +16,6 @@ export const CollabSocketProvider = ({ children }) => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    console.log("collab provider : ",assessmentId)
-    console.log("question: ",questionId);
-    console.log("cand: ", candidateId);
     if (!assessmentId || !questionId || !candidateId) return;
 
     // By default, Socket.IO doesn’t start with WebSocket.
@@ -29,11 +26,10 @@ export const CollabSocketProvider = ({ children }) => {
       transports: ["websocket"],
     });
 
-    // const roomKey = `${assessmentId}_${candidateId}_${questionId}`;
-    newSocket.emit("join-room", { assessmentId, questionId, candidateId });
-
+    // Join room once connected (server accepts join-room)
     newSocket.on("connect", () => {
       console.log("Connected to collab socket:", newSocket.id);
+      newSocket.emit("join-room", { assessmentId, questionId, candidateId });
     });
 
     newSocket.on("disconnect", () => {
