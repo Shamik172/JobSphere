@@ -1,6 +1,9 @@
 import React from "react";
 
-const SubmissionControls = ({ onRun, onSubmit }) => {
+const SubmissionControls = ({ onRun, onSubmit, runResult }) => {
+
+
+  console.log(runResult);
   return (
     <div className="flex gap-3 justify-end p-2 bg-white/30 backdrop-blur-sm border-t border-white/30 rounded-b-xl">
       <button

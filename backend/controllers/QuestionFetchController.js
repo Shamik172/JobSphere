@@ -112,6 +112,7 @@ const getQuestionById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Question not found" });
     }
 
+    console.log("q:", question)
     // Return success response
     res.status(200).json({
       success: true,
