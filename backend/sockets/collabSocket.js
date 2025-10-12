@@ -4,7 +4,7 @@ module.exports = (io) => {
   const collab = io.of("/collab");
 
   collab.on("connection", (socket) => {
-    console.log("🧩 Collab socket connected:", socket.id);
+    console.log("✅ Collab socket connected:", socket.id);
 
     // Join room and send initial state
     socket.on("join-room", async ({ assessmentId, candidateId, questionId }) => {
@@ -15,7 +15,10 @@ module.exports = (io) => {
         }
         const roomKey = `${assessmentId}_${candidateId}_${questionId}`;
         socket.join(roomKey);
-        console.log(`🧠 ${socket.id} joined room ${roomKey}`);
+        console.log(`🚪 ${socket.id} joined room ${roomKey}`);
+        
+        // Store room info in socket for later use
+        socket.data = { assessmentId, candidateId, questionId, roomKey };
 
         let attempt = await Attempt.findOne({
           assessment: assessmentId,
@@ -31,64 +34,84 @@ module.exports = (io) => {
             final_code: "",
             final_whiteboard_data: [],
           });
+          console.log("📝 Created new attempt");
         }
 
         // Send initial state once
-        socket.emit("load-initial-state", {
+        const initialData = {
           code: attempt.final_code || "",
           whiteboard: attempt.final_whiteboard_data || [],
-        },console.log("backend sent data"));
+        };
+        
+        console.log(`📤 Sending initial state: code=${initialData.code?.length || 0}, elements=${initialData.whiteboard?.length || 0}`);
+        socket.emit("load-initial-state", initialData);
       } catch (err) {
-        console.error("Error in join-room:", err);
+        console.error("❌ Error in join-room:", err);
       }
     });
 
     // Handle code changes
     socket.on("code-change", async (data) => {
       try {
+        const { assessmentId, candidateId, questionId, roomKey } = socket.data || {};
+        if (!roomKey) {
+          console.warn("⚠️ No room data available for code-change");
+          return;
+        }
+        
+        console.log(`📝 Code change in room ${roomKey}, broadcasting...`);
+        socket.to(roomKey).emit("code-update", { code: data.code });
+        
         await Attempt.updateOne(
           {
-            assessment: data.assessment || socket.handshake?.query?.assessmentId,
-            candidate: data.candidate || socket.handshake?.query?.candidateId,
-            question_id: data.questionId || socket.handshake?.query?.questionId,
+            assessment: assessmentId,
+            candidate: candidateId,
+            question_id: questionId,
           },
           {
             $set: { final_code: data.code },
-            $push: { code_events: { timestamp: new Date(), event_data: data } },
+            $push: { code_events: { timestamp: new Date(), event_data: { length: data.code?.length } } },
           }
         );
       } catch (err) {
-        console.error("Error handling code-change persist:", err);
+        console.error("❌ Error handling code-change:", err);
       }
-      const roomKey = `${socket.handshake?.query?.assessmentId}_${socket.handshake?.query?.candidateId}_${socket.handshake?.query?.questionId}`;
-      socket.to(roomKey).emit("code-update", { code: data.code });
     });
 
     // Handle whiteboard changes
     socket.on("whiteboard-change", async (data) => {
       try {
-        const plainElements = (data.whiteboard || []).map(el => JSON.parse(JSON.stringify(el)));
-        const roomKey = `${socket.handshake?.query?.assessmentId}_${socket.handshake?.query?.candidateId}_${socket.handshake?.query?.questionId}`;
+        const { assessmentId, candidateId, questionId, roomKey } = socket.data || {};
+        if (!roomKey) {
+          console.warn("⚠️ No room data available for whiteboard-change");
+          return;
+        }
+
+        const elements = data.whiteboard || [];
+        console.log(`🎨 Whiteboard change in room ${roomKey}, ${elements.length} elements, broadcasting...`);
+        
+        // Use a deep copy to avoid any reference issues
+        const plainElements = JSON.parse(JSON.stringify(elements));
         socket.to(roomKey).emit("whiteboard-update", { whiteboard: plainElements });
 
         await Attempt.updateOne(
           {
-            assessment: socket.handshake?.query?.assessmentId,
-            candidate: socket.handshake?.query?.candidateId,
-            question_id: socket.handshake?.query?.questionId,
+            assessment: assessmentId,
+            candidate: candidateId,
+            question_id: questionId,
           },
           {
             $set: { final_whiteboard_data: plainElements },
-            $push: { whiteboard_events: { timestamp: new Date(), event_data: data } },
+            $push: { whiteboard_events: { timestamp: new Date(), event_count: elements.length } },
           }
         );
       } catch (err) {
-        console.error("Error handling whiteboard-change persist:", err);
+        console.error("❌ Error handling whiteboard-change:", err);
       }
     });
 
     socket.on("disconnect", () => {
-      console.log(`❌ ${socket.id} disconnected`);
+      console.log(`👋 ${socket.id} disconnected`);
     });
   });
 };
