@@ -16,7 +16,7 @@ function AppContent() {
   const location = useLocation();
 
   // Hide Navbar on Home, Login, and Signup pages
-  const hideNavbar = ["/", "/login", "/signup"].includes(location.pathname);
+  const hideNavbar = ["/", "/login", "/signup",].includes(location.pathname) || location.pathname.startsWith("/videocall/");
 
   return (
     <>
