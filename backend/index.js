@@ -56,7 +56,7 @@ app.use('/api/problem', problemRoutes);
 app.use("/api/questions", QuestionFetchRouter);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/code", codeRoutes);
-app.use("/api/interviewer", interviewerRoutes);
+app.use("/api/interviewer",interviewerRoutes);
 app.use("/api/candidate", candidateRoutes);
 
 // Socket.io
