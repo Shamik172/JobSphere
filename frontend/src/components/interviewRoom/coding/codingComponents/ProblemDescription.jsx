@@ -1,7 +1,7 @@
 import React from "react";
 
 const ProblemDescription = ({ problem }) => {
-  // console.log(problem)
+  console.log(problem)
   return (
     <div className="space-y-5">
       {/* Title */}
