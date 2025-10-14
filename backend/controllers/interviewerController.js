@@ -1,6 +1,7 @@
 const { Interviewer } = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const cloudinary = require("../config/cloudinary");
 
 // 🔹 Helper: Generate JWT
 const generateToken = (id, role) => {
@@ -10,7 +11,7 @@ const generateToken = (id, role) => {
 // ----------------- SIGNUP -----------------
 exports.signup = async (req, res) => {
   try {
-    const { name, email, password, company, department } = req.body;
+    const { name, email, password, company, department, position } = req.body;
 
     const existingUser = await Interviewer.findOne({ email });
     if (existingUser) {
@@ -23,6 +24,7 @@ exports.signup = async (req, res) => {
       password,
       company,
       department,
+      position,
     });
 
     res.status(201).json({
@@ -61,7 +63,16 @@ exports.login = async (req, res) => {
 
     res.status(200).json({
       message: "Interviewer login successful",
-      user: { id: interviewer._id, name: interviewer.name, role: "interviewer" },
+      user: {
+        id: interviewer._id,
+        name: interviewer.name,
+        email: interviewer.email,
+        role: "interviewer",
+        company: interviewer.company,
+        department: interviewer.department,
+        position: interviewer.position,
+        profilePic: interviewer.profilePic || "",
+      },
     });
   } catch (error) {
     console.error("Login Error:", error);
@@ -87,15 +98,19 @@ exports.logout = async (req, res) => {
 // ----------------- DELETE ACCOUNT -----------------
 exports.deleteAccount = async (req, res) => {
   try {
-    // const token = req.cookies.token;
-    // if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = req.user;
-
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    await Interviewer.findByIdAndDelete(decoded.id);
+    // Delete profile pic from Cloudinary if exists
+    if (user.profilePicPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.profilePicPublicId);
+      } catch (err) {
+        console.warn("Cloudinary delete failed:", err.message);
+      }
+    }
+
+    await Interviewer.findByIdAndDelete(user._id);
 
     res.clearCookie("token", {
       httpOnly: true,
@@ -128,9 +143,81 @@ exports.verifyAuth = async (req, res) => {
         name: user.name,
         email: user.email,
         role: "interviewer",
+        company: user.company,
+        department: user.department,
+        position: user.position,
+        profilePic: user.profilePic || "",
       },
     });
   } catch (error) {
     res.json({ loggedIn: false });
   }
 };
+
+// ----------------- GET PROFILE -----------------
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await Interviewer.findById(req.user._id).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    res.status(200).json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ----------------- UPDATE PROFILE -----------------
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, company, department, position } = req.body;
+    console.log(name);
+    console.log("call")
+    const user = await Interviewer.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (name) user.name = name;
+    if (company) user.company = company;
+    if (department) user.department = department;
+    if (position) user.position = position;
+
+    await user.save();
+    res.status(200).json({ success: true, message: "Profile updated", user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ----------------- UPLOAD PROFILE PIC -----------------
+exports.uploadProfilePic = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+
+    // Delete old profile pic
+    if (user.profilePicPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.profilePicPublicId);
+      } catch (err) {
+        console.warn("Cloudinary delete failed:", err.message);
+      }
+    }
+
+    // Upload new pic
+    const uploaded = await cloudinary.uploader.upload(req.file.path, { folder: "mern_profiles" });
+
+    user.profilePic = uploaded.secure_url;
+    user.profilePicPublicId = uploaded.public_id;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture updated",
+      profilePic: user.profilePic,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Image upload failed", error: err.message });
+  }
+};
+

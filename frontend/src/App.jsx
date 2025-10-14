@@ -11,12 +11,13 @@ import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
 import UpcomingAssessments from "./components/assessment/UpcomingAssessment";
 import Navbar from "./Navbar";
 import ProtectedRoute from "./ProtectedRoute";
+import InterviewProfile from "./components/profilePage/interviewProfile"; // ✅ Uppercase
 
 function AppContent() {
   const location = useLocation();
 
-  // Hide Navbar on Home, Login, and Signup pages
-  const hideNavbar = ["/", "/login", "/signup",].includes(location.pathname) || location.pathname.startsWith("/videocall/");
+  // Hide Navbar on Home, Login, Signup, and VideoCall pages
+  const hideNavbar = ["/", "/login", "/signup"].includes(location.pathname) || location.pathname.startsWith("/videocall/");
 
   return (
     <>
@@ -82,6 +83,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <UpcomingAssessments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interviewProfile"
+          element={
+            <ProtectedRoute>
+              <InterviewProfile /> {/* ✅ Use uppercase */}
             </ProtectedRoute>
           }
         />
