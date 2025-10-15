@@ -2,18 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import socket from "../../../utils/socket";
 import { useNavigate } from 'react-router-dom'
+import VideoCallControls from './VideoCallControls'
 
-const ICE_SERVERS = {
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302"
-    }
-  ]
-};
+const ICE_SERVERS = { iceServers: [{ urls: "stun:stun.l.google.com:19302"}] };
 
 export default function VideoCallWindow({ roomId, userId }) {
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
   const [peers, setPeers] = useState({}); // mapping socketId -> RTCPeerConnection
   const [remoteStreams, setRemoteStreams] = useState({}); // mapping socketId -> MediaStream for UI
   const localVideoRef = useRef();
@@ -23,12 +16,22 @@ export default function VideoCallWindow({ roomId, userId }) {
   // mutable refs to avoid stale closures
   const peersRef = useRef({}); // socketId -> RTCPeerConnection
   const pendingCandidatesRef = useRef({}); // socketId -> [candidate,...]
+  const negotiationLock = useRef(false);
+
 
   // helper to add peer into refs + state
   const addPeerToState = (socketId, pc, meta = {}) => {
     peersRef.current[socketId] = pc;
     setPeers(prev => ({ ...prev, [socketId]: { pc, ...meta } }));
   };
+
+  // inside VideoCallWindow component, after peers state is declared
+  useEffect(() => {
+    const peerIds = Object.keys(peers);
+    console.log("Total peers in room (excluding you):", peerIds.length);
+    console.log("Peer socket IDs:", peerIds);
+  }, [peers]);
+
 
   useEffect(() => {
     let mounted = true;
@@ -59,6 +62,31 @@ export default function VideoCallWindow({ roomId, userId }) {
         if (remoteStream) {
           setRemoteStreams((prev) => ({ ...prev, [targetSocketId]: remoteStream }));
         }
+      };
+
+      // Handles camera/mic toggle renegotiation safely
+      pc.onnegotiationneeded = async () => {
+        if (negotiationLock.current || pc.signalingState !== "stable") {
+          console.warn("Skipping renegotiation — busy or unstable");
+          return;
+        }
+        try {
+          negotiationLock.current = true;
+          await new Promise((res) => setTimeout(res, 200)); // small debounce
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("offer", { to: targetSocketId, sdp: offer });
+        } catch (err) {
+          console.error("Error during renegotiation:", err);
+        } finally {
+          negotiationLock.current = false;
+        }
+      };
+
+
+      // Optional: helps debug signaling flow
+      pc.onsignalingstatechange = () => {
+        console.log(`(${targetSocketId}) signalingState →`, pc.signalingState);
       };
 
       // drain any pending ICE candidates for this peer
@@ -126,66 +154,87 @@ export default function VideoCallWindow({ roomId, userId }) {
     // after receiving intiator offer now this system sets initiator as remotedescription and it owns as localdescription and answers with it's icecandidate and sdp 
     const handleReceiveOffer = async ({ from, sdp }) => {
       try {
-        // If we don't have a peer yet for this 'from', create one (non-initiator)
-        // Check if Bob already created a RTCPeerConnection for from (Alice). If yes, reuse it — you might have created it earlier when preparing for incoming users.
         let pc = peersRef.current[from];
         if (!pc) {
-          // create placeholder & pc
           setPeers((prev) => ({ ...prev, [from]: null }));
-          pc = await createPeer(from, localStreamRef.current, false); // false as not gonna create offer
+          pc = await createPeer(from, localStreamRef.current, false);
           addPeerToState(from, pc);
         }
 
-        // Tells the browser: “This is the remote side’s description (Alice’s offer).”
-        // Internally the browser:
-        // Parses codecs and media directions (sendrecv/sendonly).
-        // Prepares to match local tracks with remote expectations.
-        // May start ICE candidate gathering if not already started.
-        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-        const answer = await pc.createAnswer(); //Browser creates an SDP answer that describes what Bob will send and accept (matching capabilities).
-        await pc.setLocalDescription(answer); //Sets Bob’s local description — this also usually triggers the browser to begin gathering ICE candidates (if ICE gathering hadn’t started).
+        if (negotiationLock.current) {
+          console.warn("Offer ignored — negotiation in progress");
+          return;
+        }
 
-        // send answer back to the offerer
+        if (pc.signalingState !== "stable") {
+          console.warn(`Ignoring offer from ${from}, signalingState=${pc.signalingState}`);
+          return;
+        }
+
+        negotiationLock.current = true;
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
         socket.emit("answer", { to: from, sdp: answer });
 
-        // drain any queued ICE candidates for this peer (if not already drained in createPeer)
-        const queued = pendingCandidatesRef.current[from];
-        if (queued && queued.length) {
-          for (const cand of queued) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(cand));
-            } catch (err) {
-              console.warn("Error adding queued ICE candidate after answer:", err);
-            }
-          }
-          delete pendingCandidatesRef.current[from];
-        }
+        // drain queued ICE candidates...
+        // ...
       } catch (err) {
         console.error("Error handling received offer:", err);
+      } finally {
+        negotiationLock.current = false;
       }
     };
+
 
     const handleReceiveAnswer = async ({ from, sdp }) => {
       try {
         const pc = peersRef.current[from];
-        if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-        } else {
-          // no pc yet? queue candidate / or log
-          console.warn("Received answer but no RTCPeerConnection found for", from);
+        if (!pc) {
+          console.warn("No RTCPeerConnection for", from);
+          return;
         }
+
+        if (negotiationLock.current) {
+          console.warn("Answer ignored — negotiation in progress");
+          return;
+        }
+
+        if (pc.signalingState !== "have-local-offer") {
+          console.warn(`Ignoring answer from ${from} — state ${pc.signalingState}`);
+          return;
+        }
+
+        negotiationLock.current = true;
+
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+
+        negotiationLock.current = false;
       } catch (err) {
+        negotiationLock.current = false;
         console.error("Error handling received answer:", err);
       }
     };
+
 
     const handleNewICECandidateMsg = async ({ from, candidate }) => {
       try {
         const pc = peersRef.current[from];
         if (pc) {
+          // If remote description not yet set, queue candidate
+          if (!pc.remoteDescription || pc.remoteDescription.type === "") {
+            console.warn(
+              `Queueing ICE candidate from ${from} because remoteDescription is not set yet`
+            );
+            pendingCandidatesRef.current[from] = pendingCandidatesRef.current[from] || [];
+            pendingCandidatesRef.current[from].push(candidate);
+            return;
+          }
+
+          // Safe to add now
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
         } else {
-          // peer not created yet -> queue candidate
+          // No peer yet — queue candidate
           pendingCandidatesRef.current[from] = pendingCandidatesRef.current[from] || [];
           pendingCandidatesRef.current[from].push(candidate);
         }
@@ -193,6 +242,7 @@ export default function VideoCallWindow({ roomId, userId }) {
         console.error("Error adding received ICE candidate:", err);
       }
     };
+
 
     const handleUserDisconnected = (otherSocketId) => {
       // close peer and remove from state
@@ -226,26 +276,17 @@ export default function VideoCallWindow({ roomId, userId }) {
 
     // main init: get local media and emit join-room
     const initMedia = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        if (!mounted) {
-          // component was unmounted while waiting for permission
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
+      // Create an empty stream first (no permission asked yet)
+      const stream = new MediaStream();
+      localStreamRef.current = stream;
 
-        localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-        // send join-room after we have media & listeners set up
-        socket.emit("join-room", { roomId, userId });
-      } catch (err) {
-        console.error("getUserMedia error:", err);
-        // handle UI fallback: show message / disable join etc.
+      // Assign empty stream to local video element (black preview)
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
       }
+
+      // Join the room immediately — you can still receive remote streams
+      socket.emit("join-room", { roomId, userId });
     };
 
     initMedia();
@@ -280,76 +321,6 @@ export default function VideoCallWindow({ roomId, userId }) {
     // run effect again if roomId/userId change
   }, [roomId, userId]);
 
-  // toggle mic (prefer toggle enabled over stopping device)
-  const toggleMic = async () => {
-    try {
-      const audioTracks = localStreamRef.current.getAudioTracks();
-      if (audioTracks.length) {
-        // simply enable/disable existing track (no permission prompts)
-        audioTracks.forEach((t) => (t.enabled = !t.enabled));
-        setMicOn(audioTracks[0].enabled);
-      } else {
-        // no track present (was removed) -> request new audio, add and replace senders
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const newTrack = audioStream.getAudioTracks()[0];
-        localStreamRef.current.addTrack(newTrack);
-        Object.values(peersRef.current).forEach((peer) => {
-          const sender = peer.getSenders().find((s) => s.track && s.track.kind === "audio");
-          if (sender) {
-            sender.replaceTrack(newTrack);
-          } else {
-            peer.addTrack(newTrack, localStreamRef.current);
-          }
-        });
-        setMicOn(true);
-      }
-    } catch (err) {
-      console.error("toggleMic error:", err);
-    }
-  };
-
-  // toggle camera
-  const toggleCam = async () => {
-    try {
-      const videoTracks = localStreamRef.current.getVideoTracks();
-      if (videoTracks.length) {
-        // toggle enabled (disable camera preview & stop sending)
-        videoTracks.forEach((t) => (t.enabled = !t.enabled));
-        const isOn = videoTracks[0].enabled;
-        setCamOn(isOn);
-        if (!isOn) {
-          // if camera disabled, keep preview as audio-only stream
-          if (localVideoRef.current) {
-            const audioOnly = new MediaStream(localStreamRef.current.getAudioTracks());
-            localVideoRef.current.srcObject = audioOnly;
-          }
-        } else {
-          // enable camera preview using current stream object
-          if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
-        }
-      } else {
-        // no video track -> request camera
-        const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const videoTrack = videoStream.getVideoTracks()[0];
-        localStreamRef.current.addTrack(videoTrack);
-
-        // replace or add senders on all peers
-        Object.values(peersRef.current).forEach((peer) => {
-          const sender = peer.getSenders().find((s) => s.track && s.track.kind === "video");
-          if (sender) sender.replaceTrack(videoTrack);
-          else peer.addTrack(videoTrack, localStreamRef.current);
-        });
-
-        // update preview
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStreamRef.current;
-        }
-        setCamOn(true);
-      }
-    } catch (err) {
-      console.error("toggleCam error:", err);
-    }
-  };
 
   const leaveCall = () => {
     // stop local tracks
@@ -389,97 +360,71 @@ export default function VideoCallWindow({ roomId, userId }) {
   }
 
   return (
-    <div className="relative w-full h-full bg-gray-800">
-      {/* Video grid */}
-      <div className={`grid ${getGridCols(totalParticipants)} gap-2 p-2 h-full`}>
-        {/* Local video */}
-        <div className="relative w-full h-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
-          {camOn ? (
-            <video
-              ref={localVideoRef}
-              muted
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center w-full h-full bg-gray-700">
-              <span className="text-4xl font-bold text-white">
-                {getInitial("You")}
+      <div className="relative w-full h-full bg-gray-800 flex flex-col">
+        {/* Video grid */}
+        <div className="flex-1 overflow-hidden p-3 pb-28">
+          <div className={`grid ${getGridCols(totalParticipants)} gap-2 h-full`}>
+            {/* Local video */}
+            <div className="relative w-full h-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+              <video
+                ref={localVideoRef}
+                muted
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-sm px-2 py-1 rounded">
+                You
               </span>
             </div>
-          )}
-          <span className="absolute bottom-2 left-2 bg-black/60 text-white text-sm px-2 py-1 rounded">
-            You
-          </span>
+
+            {/* Remote videos */}
+            {visiblePeers.map((id) => (
+              <div
+                key={id}
+                className="relative w-full h-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center"
+              >
+                {remoteStreams[id] ? (
+                  <video
+                    id={`video-${id}`}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                    ref={(el) => el && (el.srcObject = remoteStreams[id])}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gray-700">
+                    <span className="text-4xl font-bold text-white">{getInitial(id)}</span>
+                  </div>
+                )}
+                <span className="absolute bottom-2 left-2 bg-black/60 text-white text-sm px-2 py-1 rounded">
+                  {id}
+                </span>
+              </div>
+            ))}
+
+            {overflowPeers.length > 0 && (
+              <div className="relative flex items-center justify-center bg-gray-900 rounded-lg text-white text-lg font-semibold">
+                +{overflowPeers.length} More
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Remote videos (only visible peers) */}
-        {visiblePeers.map((id) => {
-          const peer = peers[id]; // you can store camOn/micOn per peer in your state
-          const camEnabled = peer?.camOn ?? true; // fallback true if not tracked
-          return (
-            <div
-              key={id}
-              className="relative w-full h-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center"
-            >
-              {camEnabled && remoteStreams[id] ? (
-                <video
-                  id={`video-${id}`}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                  ref={(el) => {
-                    if (el && remoteStreams[id]) {
-                      el.srcObject = remoteStreams[id];
-                    }
-                  }}
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gray-700">
-                  <span className="text-4xl font-bold text-white">
-                    {getInitial(id)}
-                  </span>
-                </div>
-              )}
-              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-sm px-2 py-1 rounded">
-                {id}
-              </span>
-            </div>
-          );
-        })}
-
-        {/* More box if too many */}
-        {overflowPeers.length > 0 && (
-          <div className="relative flex items-center justify-center bg-gray-900 rounded-lg text-white text-lg font-semibold">
-            +{overflowPeers.length} More
+        {/* Controls */}
+        <div className="w-full bg-gray-900 border-t border-gray-700 p-3 flex justify-center fixed bottom-0 left-0 z-50">
+          <div className="max-w-4xl w-full">
+            <VideoCallControls
+              localStreamRef={localStreamRef}
+              localVideoRef={localVideoRef} // important
+              onLeaveCall={leaveCall}
+              participantsCount={totalParticipants}
+            />
           </div>
-        )}
+        </div>
       </div>
-
-      {/* Controls bar */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-6 bg-gray-900 bg-opacity-70 p-4 rounded-full shadow-lg">
-        <button
-          onClick={toggleMic}
-          className="p-3 rounded-full bg-gray-700 hover:bg-gray-600"
-        >
-          {micOn ? <Mic className="text-white" /> : <MicOff className="text-white" />}
-        </button>
-        <button
-          onClick={toggleCam}
-          className="p-3 rounded-full bg-gray-700 hover:bg-gray-600"
-        >
-          {camOn ? <Video className="text-white" /> : <VideoOff className="text-white" />}
-        </button>
-        <button
-          onClick={leaveCall}
-          className="p-3 rounded-full bg-red-600 hover:bg-red-500"
-        >
-          <PhoneOff className="text-white" />
-        </button>
-      </div>
-    </div>
   );
+
 }
 
 // helper used in render (keep outside component)

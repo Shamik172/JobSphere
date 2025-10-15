@@ -7,6 +7,7 @@ import axios from "axios";
 export default function VideoCallPage() {
   const { assessmentId, roomId } = useParams();
   // console.log("roomroomId : ", roomId)
+  const userId = "guest-" + Math.random().toString(36).substring(2, 10);
 
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
@@ -42,7 +43,7 @@ export default function VideoCallPage() {
   return (
     <div className="w-screen h-screen bg-gray-900 relative overflow-hidden">
       {/* Video call window (main area) */}
-      <VideoCallWindow />
+      <VideoCallWindow roomId={roomId} userId={userId} />
 
       {/* Top-left "Questions" button */}
       <div className="absolute top-4 left-4 z-50">
