@@ -6,6 +6,7 @@ import DemoSection from "../home/homecomponents/DemoSection";
 import PricingSection from "../home/homecomponents/PricingSection";
 import TestimonialsSection from "../home/homecomponents/TestimonialsSection";
 import Footer from "../home/homecomponents/Footer";
+import ShowcaseSection from "./homecomponents/ShowcaseSection";
 
 export default function JobSphereHomepage() {
   return (
@@ -14,7 +15,8 @@ export default function JobSphereHomepage() {
       <main className="max-w-7xl mx-auto px-6">
         <Navbar/>
         <HeroSection />
-        <FeaturesSection />
+        {/* <FeaturesSection /> */}
+        <ShowcaseSection/>
         <DemoSection />
         <PricingSection />
         <TestimonialsSection />
