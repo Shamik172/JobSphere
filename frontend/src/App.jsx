@@ -11,25 +11,29 @@ import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
 import UpcomingAssessments from "./components/assessment/UpcomingAssessment";
 import Navbar from "./Navbar";
 import ProtectedRoute from "./ProtectedRoute";
-import InterviewProfile from "./components/profilePage/interviewProfile"; // ✅ Uppercase
+import InterviewProfile from "./components/profilePage/interviewProfile";
+import NotFound from "./NotFound";
+import MyAssessment from "./components/candidate/MyAssessment";
 
 function AppContent() {
   const location = useLocation();
 
-  // Hide Navbar on Home, Login, Signup, and VideoCall pages
-  const hideNavbar = ["/", "/login", "/signup"].includes(location.pathname) || location.pathname.startsWith("/videocall/");
+  // Hide Navbar on specific routes
+  const hideNavbar =
+    ["/", "/login", "/signup"].includes(location.pathname) ||
+    location.pathname.startsWith("/videocall/");
 
   return (
     <>
       {!hideNavbar && <Navbar />}
 
       <Routes>
-        {/* Public Routes */}
+        {/* === Public Routes === */}
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Protected Routes */}
+        {/* === Common Protected Routes (for all logged-in users) === */}
         <Route
           path="/room/:roomId"
           element={
@@ -62,10 +66,12 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+
+        {/* === Interviewer-Only Routes === */}
         <Route
           path="/create_assessment"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["interviewer"]}>
               <AssessmentBuilder />
             </ProtectedRoute>
           }
@@ -73,7 +79,7 @@ function AppContent() {
         <Route
           path="/assessment/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["interviewer"]}>
               <AssessmentBuilder />
             </ProtectedRoute>
           }
@@ -81,7 +87,7 @@ function AppContent() {
         <Route
           path="/assessment/upcoming_assessment"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["interviewer"]}>
               <UpcomingAssessments />
             </ProtectedRoute>
           }
@@ -89,12 +95,25 @@ function AppContent() {
         <Route
           path="/interviewProfile"
           element={
-            <ProtectedRoute>
-              <InterviewProfile /> {/* ✅ Use uppercase */}
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <InterviewProfile />
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/candidate/my_assessment"
+          element={
+            <ProtectedRoute allowedRoles={["candidate"]}>
+              <MyAssessment />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
+
+
+
     </>
   );
 }
