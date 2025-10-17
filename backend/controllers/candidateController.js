@@ -1,5 +1,7 @@
+const AssessmentParticipant = require("../models/AssessmentParticipant");
 const { Candidate } = require("../models/User");
 const jwt = require("jsonwebtoken");
+
 
 // 🔹 Helper: Generate JWT
 const generateToken = (id, role) => {
@@ -131,5 +133,34 @@ exports.verifyAuth = async (req, res) => {
     });
   } catch (error) {
     res.json({ loggedIn: false });
+  }
+};
+
+
+exports.getMyAssessments = async (req, res) => {
+  try {
+    const candidateId = req.user._id;
+    console.log(candidateId);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const assessments = await AssessmentParticipant.find({
+      user: candidateId,
+      role: "candidate",
+    })
+      .populate({
+        path: "assessment",
+        match: { date: { $gte: today } }, // Only future/upcoming
+      })
+      .sort({ "assessment.date": 1 });
+
+    const upcoming = assessments
+      .filter((ap) => ap.assessment)
+      .map((ap) => ap.assessment);
+
+    res.status(200).json({ assessments: upcoming });
+  } catch (error) {
+    console.error("Get My Assessments Error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

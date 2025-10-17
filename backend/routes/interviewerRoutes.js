@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const upload = require("../config/multer"); // multer for file uploads
-const { protect } = require("../middlewares/authMiddleware");
+const { protectInterviewer } = require("../middlewares/authMiddleware");
 
 const {
   signup,
@@ -22,13 +22,13 @@ router.post("/logout", logout);
 router.get("/verify", verifyAuth);
 
 // ----------------- PROFILE -----------------
-router.get("/profile",  protect, getProfile); // get profile info
-router.post("/update",  protect, updateProfile); // update profile info
+router.get("/profile",  protectInterviewer, getProfile); // get profile info
+router.post("/update",  protectInterviewer, updateProfile); // update profile info
 
 
-router.post("/profile-pic", protect, upload.single("image"), uploadProfilePic); // upload profile pic
+router.post("/profile-pic", protectInterviewer, upload.single("image"), uploadProfilePic); // upload profile pic
 
 // ----------------- DELETE ACCOUNT -----------------
-router.delete("/delete", protect, deleteAccount);
+router.delete("/delete", protectInterviewer, deleteAccount);
 
 module.exports = router;

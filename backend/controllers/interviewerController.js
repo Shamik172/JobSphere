@@ -41,7 +41,7 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    console.log(email)
     const interviewer = await Interviewer.findOne({ email });
     if (!interviewer) {
       return res.status(400).json({ message: "Invalid email or password" });
@@ -57,6 +57,7 @@ exports.login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
+      // sameSite: "strict",
       sameSite: "none",
       maxAge: 24 * 60 * 60 * 1000,
     });
@@ -85,8 +86,8 @@ exports.logout = async (req, res) => {
   try {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: false,
-      sameSite: "none",
+       secure: true,
+      sameSite: "strict",
     });
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
@@ -114,8 +115,8 @@ exports.deleteAccount = async (req, res) => {
 
     res.clearCookie("token", {
       httpOnly: true,
-      secure: false,
-      sameSite: "none",
+      secure: true,
+      sameSite: "strict",
     });
 
     res.status(200).json({ message: "Account deleted successfully" });
