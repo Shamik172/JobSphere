@@ -9,9 +9,8 @@ export default function VideoCallPage() {
   const { assessmentId, roomId } = useParams();
   const { user} = useAuth();
   // console.log("roomroomId : ", roomId)
-  console.log(user);
-  console.log("video call user")
-  console.log(user.id);
+
+
   const userId = user.id;
 
   const [showQuestions, setShowQuestions] = useState(false);

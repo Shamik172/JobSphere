@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./components/home/Home";
 import RoomPage from "./components/RoomPage";
@@ -14,6 +14,9 @@ import ProtectedRoute from "./ProtectedRoute";
 import InterviewProfile from "./components/profilePage/interviewProfile";
 import NotFound from "./NotFound";
 import MyAssessment from "./components/candidate/MyAssessment";
+
+// Import the notification mount function
+import { mountNotifications } from "./notification/Notification";
 
 function AppContent() {
   const location = useLocation();
@@ -109,16 +112,19 @@ function AppContent() {
           }
         />
 
+        {/* Fallback route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-
-
-
     </>
   );
 }
 
 function App() {
+  // Mount global notifications once
+  useEffect(() => {
+    mountNotifications();
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

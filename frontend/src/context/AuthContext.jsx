@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
+import { notify } from "../notification/Notification";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   const isLoggedIn = !!user;
 
   const verifyAuth = async () => {
@@ -30,7 +31,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-      
+
       setUser(null);
     } catch (err) {
       setUser(null);
@@ -52,13 +53,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/${user.role}/logout`;
       await axios.post(endpoint, {}, { withCredentials: true });
+
+      // ✅ Show notification on successful logout
+      notify("Logged out successfully", "success", 5000);
     } catch (error) {
       console.error("Logout failed:", error);
+
+      // ✅ Show notification on error
+      notify("Logout failed. Please try again.", "error", 5000);
     } finally {
       setUser(null);
     }
   };
-  
+
   return (
     <AuthContext.Provider value={{ user, isLoggedIn, login, logout, loading }}>
       {!loading && children}

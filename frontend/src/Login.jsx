@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import { Lock, Mail } from "lucide-react";
+import { notify } from "./notification/Notification.jsx"; // ✅ import notify
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
 
-  // Default to interviewer login unless redirected
   const initialUserType = location.state?.userType || "interviewer";
   const [userType, setUserType] = useState(initialUserType);
 
@@ -18,6 +18,8 @@ const Login = () => {
 
   useEffect(() => {
     if (message) {
+      // ✅ show notification instead of <p> message
+      notify(message, message.includes("failed") || message.includes("error") ? "error" : "success");
       const timer = setTimeout(() => setMessage(""), 3000);
       return () => clearTimeout(timer);
     }
@@ -54,12 +56,13 @@ const Login = () => {
       const data = await res.json();
       if (res.ok) {
         await login();
+        notify("Login Successful!", "success"); // ✅ notify on success
         navigate(from, { replace: true });
       } else {
-        setMessage(data.message || "Login failed");
+        setMessage(data.message || "Login failed"); // ✅ notify via useEffect
       }
     } catch (err) {
-      setMessage("Server error — please try again.");
+      setMessage("Server error — please try again."); // ✅ notify via useEffect
     } finally {
       setLoading(false);
     }
@@ -67,19 +70,14 @@ const Login = () => {
 
   const isInterviewer = userType === "interviewer";
 
-  // === Dynamic theme colors based on user type ===
   const theme = isInterviewer
     ? {
         bg: "from-indigo-300 via-blue-500 to-purple-600",
         card: "bg-white/70 border-white/40",
-        accent: "indigo",
-        text: "text-gray-800",
       }
     : {
         bg: "from-orange-300 via-pink-500 to-purple-600",
         card: "bg-white/70 border-white/40",
-        accent: "orange",
-        text: "text-gray-800",
       };
 
   return (
@@ -97,7 +95,7 @@ const Login = () => {
           {isInterviewer ? "Interviewer Portal" : "Candidate Portal"}
         </p>
 
-        {/* === Form === */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="relative">
             <Mail
@@ -141,19 +139,6 @@ const Login = () => {
             {loading ? "Logging In..." : "Login"}
           </button>
         </form>
-
-        {/* Message */}
-        {message && (
-          <p
-            className={`mt-4 text-center font-medium ${
-              message.includes("failed") || message.includes("error")
-                ? "text-red-600"
-                : "text-green-600"
-            }`}
-          >
-            {message}
-          </p>
-        )}
 
         {/* Toggle */}
         <div className="mt-6 text-center">
