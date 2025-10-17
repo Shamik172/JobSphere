@@ -11,9 +11,10 @@ import {
 
 export default function VideoCallControls({
   localStreamRef,
-  localVideoRef,      // optional, to update preview after permission
+  localVideoRef,
   onLeaveCall,
   participantsCount,
+  onMediaStateChange, // New prop to notify parent of media changes
 }) {
   const [micOn, setMicOn] = useState(false);
   const [camOn, setCamOn] = useState(false);
@@ -27,10 +28,15 @@ export default function VideoCallControls({
         video: true,
       });
 
-      // store the stream globally
+      // Check if the current localStreamRef already has tracks and stop them
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      // Assign the new stream
       localStreamRef.current = stream;
 
-      // attach to video element if provided
+      // Attach to video element if provided
       if (localVideoRef?.current) {
         localVideoRef.current.srcObject = stream;
       }
@@ -39,70 +45,101 @@ export default function VideoCallControls({
       setCamOn(true);
       setPermissionAsked(true);
 
-      console.log("✅ Permissions granted, media stream ready");
+      // Notify parent component about media state
+      onMediaStateChange?.(true, true);
+
+      console.log("✅ Permissions granted, media stream ready:", {
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
+      });
     } catch (err) {
       console.error("❌ Permission denied:", err);
-      // alert(
-      //   "Please allow camera and microphone access from your browser to join the call."
-      // );
+      // Set states to reflect permission denial
+      setMicOn(false);
+      setCamOn(false);
+      onMediaStateChange?.(false, false);
+      alert(
+        "Please allow camera and microphone access to join the call. You can refresh the page to try again."
+      );
     }
   };
 
-  // 🔹 Ask permission automatically once when joining
+  // Ask permission automatically once when joining
   useEffect(() => {
     if (!permissionAsked) {
       requestPermissions();
     }
+
+    // Cleanup function to stop tracks when component unmounts
+    return () => {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
   }, []);
 
-  // 🎙 Toggle microphone
+  // Toggle microphone
   const toggleMic = () => {
     const tracks = localStreamRef.current?.getAudioTracks();
     if (tracks?.length) {
-      const newState = !tracks[0].enabled;
+      const newState = !micOn;
       tracks.forEach((t) => (t.enabled = newState));
       setMicOn(newState);
+      onMediaStateChange?.(newState, camOn);
     } else {
       requestPermissions(); // if no tracks yet, ask permission again
     }
   };
 
-  // 📷 Toggle camera
+  // Toggle camera
   const toggleCam = () => {
     const tracks = localStreamRef.current?.getVideoTracks();
     if (tracks?.length) {
-      const newState = !tracks[0].enabled;
+      const newState = !camOn;
       tracks.forEach((t) => (t.enabled = newState));
       setCamOn(newState);
+      onMediaStateChange?.(micOn, newState);
     } else {
       requestPermissions(); // if no video tracks yet
     }
   };
 
-  // ✋ Raise hand
+  // Raise hand
   const raiseHand = () => {
     alert("✋ Hand Raised");
   };
 
-  // 🎛 Controls bar
+  // Controls bar
   return (
     <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-6 bg-gray-900 bg-opacity-70 p-4 rounded-full shadow-lg z-50">
       {/* Mic toggle */}
       <button
         onClick={toggleMic}
-        className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 focus:ring-2 focus:ring-white"
+        className={`p-3 rounded-full ${
+          micOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-500"
+        } focus:ring-2 focus:ring-white`}
         title={micOn ? "Mute mic" : "Unmute mic"}
       >
-        {micOn ? <Mic className="text-white" /> : <MicOff className="text-white" />}
+        {micOn ? (
+          <Mic className="text-white" />
+        ) : (
+          <MicOff className="text-white" />
+        )}
       </button>
 
       {/* Camera toggle */}
       <button
         onClick={toggleCam}
-        className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 focus:ring-2 focus:ring-white"
+        className={`p-3 rounded-full ${
+          camOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-500"
+        } focus:ring-2 focus:ring-white`}
         title={camOn ? "Turn off camera" : "Turn on camera"}
       >
-        {camOn ? <Video className="text-white" /> : <VideoOff className="text-white" />}
+        {camOn ? (
+          <Video className="text-white" />
+        ) : (
+          <VideoOff className="text-white" />
+        )}
       </button>
 
       {/* Raise hand */}
