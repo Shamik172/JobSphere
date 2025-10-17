@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { User, Lock, Mail, Building, Briefcase, Link as LinkIcon } from "lucide-react";
+import { notify } from "./notification/Notification";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -43,11 +44,15 @@ const Signup = () => {
 
     try {
       const res = await axios.post(apiEndpoint, payload);
-      navigate("/login", {
-        state: { message: res.data.message || "Signup successful! Please log in." },
-      });
+
+      // ✅ Show success notification
+      notify(res.data.message || "Signup successful! Please log in.", "success", 5000);
+
+      // Navigate to login page
+      navigate("/login");
     } catch (err) {
-      setMessage(err.response?.data?.message || "An unknown error occurred.");
+      // ✅ Show error notification
+      notify(err.response?.data?.message || "An unknown error occurred.", "error", 5000);
     } finally {
       setLoading(false);
     }
@@ -58,19 +63,19 @@ const Signup = () => {
   // === Dynamic theme colors based on user type ===
   const theme = isInterviewer
     ? {
-        bg: "from-indigo-300 via-blue-500 to-purple-600",
-        card: "bg-white/70 border-white/40",
-        accent: "indigo",
-        text: "text-gray-800",
-        button: "from-indigo-500 to-blue-600",
-      }
+      bg: "from-indigo-300 via-blue-500 to-purple-600",
+      card: "bg-white/70 border-white/40",
+      accent: "indigo",
+      text: "text-gray-800",
+      button: "from-indigo-500 to-blue-600",
+    }
     : {
-        bg: "from-orange-300 via-pink-500 to-purple-600",
-        card: "bg-white/70 border-white/40",
-        accent: "orange",
-        text: "text-gray-800",
-        button: "from-orange-500 to-pink-600",
-      };
+      bg: "from-orange-300 via-pink-500 to-purple-600",
+      card: "bg-white/70 border-white/40",
+      accent: "orange",
+      text: "text-gray-800",
+      button: "from-orange-500 to-pink-600",
+    };
 
   return (
     <div
@@ -81,11 +86,10 @@ const Signup = () => {
       >
         {/* Title */}
         <h1
-          className={`text-4xl font-extrabold text-center mb-2 tracking-tight bg-clip-text text-transparent ${
-            isInterviewer
+          className={`text-4xl font-extrabold text-center mb-2 tracking-tight bg-clip-text text-transparent ${isInterviewer
               ? "bg-gradient-to-r from-indigo-700 to-blue-600"
               : "bg-gradient-to-r from-orange-600 to-pink-500"
-          }`}
+            }`}
         >
           Create an Account
         </h1>
@@ -194,11 +198,10 @@ const Signup = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-lg text-white font-semibold shadow-md transition-all ${
-              loading
+            className={`w-full py-3 rounded-lg text-white font-semibold shadow-md transition-all ${loading
                 ? "cursor-not-allowed opacity-70"
                 : `bg-gradient-to-r ${theme.button} hover:opacity-90`
-            }`}
+              }`}
           >
             {loading ? "Creating Account..." : "Sign Up"}
           </button>
@@ -213,11 +216,10 @@ const Signup = () => {
         <div className="mt-6 text-center">
           <button
             onClick={handleUserTypeToggle}
-            className={`text-sm font-medium hover:underline ${
-              isInterviewer
+            className={`text-sm font-medium hover:underline ${isInterviewer
                 ? "text-indigo-700 hover:text-indigo-900"
                 : "text-orange-700 hover:text-orange-900"
-            }`}
+              }`}
           >
             {isInterviewer ? "Sign up as a Candidate" : "Sign up as an Interviewer"}
           </button>
@@ -228,11 +230,10 @@ const Signup = () => {
           Already have an account?{" "}
           <button
             onClick={() => navigate("/login", { state: { userType } })}
-            className={`font-semibold hover:underline ${
-              isInterviewer
+            className={`font-semibold hover:underline ${isInterviewer
                 ? "text-indigo-800 hover:text-indigo-900"
                 : "text-orange-800 hover:text-orange-900"
-            }`}
+              }`}
           >
             Login
           </button>
