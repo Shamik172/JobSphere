@@ -22,14 +22,14 @@ function getGridCols(count) {
   return "grid-cols-4"; // keep 4-cols for overflow (rest go to "More")
 }
 
-export default function VideoCallWindow({ roomId, userId }) {
+export default function VideoCallWindow({ roomId, userId ,isMiniVideoCallWindow = false}) {
   const [peers, setPeers] = useState({}); // mapping socketId -> RTCPeerConnection info
   const [remoteStreams, setRemoteStreams] = useState({}); // mapping socketId -> MediaStream for UI
   const [isHost, setIsHost] = useState(false);
   const [hostId, setHostId] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState({});
   const [mediaState, setMediaState] = useState({ audio: false, video: false });
-  const [socketId, setSocketId] = useState(null);
+  const [socketId, setSocketId] = useState(null);//controls
 
   // Refs
   const localVideoRef = useRef();
@@ -808,6 +808,7 @@ export default function VideoCallWindow({ roomId, userId }) {
             onLeaveCall={leaveCall}
             onMediaStateChange={handleMediaStateChange}
             participantsCount={totalParticipants}
+            isMiniVideoCallWindow={isMiniVideoCallWindow}
           />
         </div>
       </div>

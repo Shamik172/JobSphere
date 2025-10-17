@@ -15,10 +15,16 @@ export default function VideoCallControls({
   onLeaveCall,
   participantsCount,
   onMediaStateChange, // New prop to notify parent of media changes
+  isMiniVideoCallWindow,
 }) {
   const [micOn, setMicOn] = useState(false);
   const [camOn, setCamOn] = useState(false);
   const [permissionAsked, setPermissionAsked] = useState(false);
+
+  console.log("dljfds : ",isMiniVideoCallWindow)
+  // 1. Define icon size based on the prop
+  const iconSize = isMiniVideoCallWindow ? 18 : 24;
+  const buttonPadding = isMiniVideoCallWindow ? "p-2" : "p-3";
 
   // Request camera + mic permission (like Google Meet)
   const requestPermissions = async () => {
@@ -111,62 +117,59 @@ export default function VideoCallControls({
 
   // Controls bar
   return (
-    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-6 bg-gray-900 bg-opacity-70 p-4 rounded-full shadow-lg z-50">
+    <div
+      className={`absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center bg-gray-900 bg-opacity-70 rounded-full shadow-lg z-50 transition-all duration-300 ${
+        isMiniVideoCallWindow ? "gap-2 p-2" : "gap-5 p-3" // 2. Reduced gap and padding
+      }`}
+    >
       {/* Mic toggle */}
       <button
         onClick={toggleMic}
-        className={`p-3 rounded-full ${
+        className={`${buttonPadding} rounded-full ${ // 3. Dynamic button padding
           micOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-500"
         } focus:ring-2 focus:ring-white`}
         title={micOn ? "Mute mic" : "Unmute mic"}
       >
         {micOn ? (
-          <Mic className="text-white" />
+          <Mic className="text-white" size={iconSize} /> // 4. Dynamic icon size
         ) : (
-          <MicOff className="text-white" />
+          <MicOff className="text-white" size={iconSize} />
         )}
       </button>
 
       {/* Camera toggle */}
       <button
         onClick={toggleCam}
-        className={`p-3 rounded-full ${
+        className={`${buttonPadding} rounded-full ${
           camOn ? "bg-gray-700 hover:bg-gray-600" : "bg-red-600 hover:bg-red-500"
         } focus:ring-2 focus:ring-white`}
         title={camOn ? "Turn off camera" : "Turn on camera"}
       >
         {camOn ? (
-          <Video className="text-white" />
+          <Video className="text-white" size={iconSize} />
         ) : (
-          <VideoOff className="text-white" />
+          <VideoOff className="text-white" size={iconSize} />
         )}
       </button>
-
-      {/* Raise hand */}
-      <button
-        onClick={raiseHand}
-        className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 focus:ring-2 focus:ring-yellow-400"
-        title="Raise hand"
-      >
-        <Hand className="text-yellow-400" />
-      </button>
-
-      {/* Participants count */}
-      <div
-        className="p-3 rounded-full bg-gray-700 text-white flex items-center gap-2"
-        title="Participants"
-      >
-        <Users size={20} />
-        <span>{participantsCount}</span>
-      </div>
+      
+      {/* Participants count (hidden when minimized) */}
+      {!isMiniVideoCallWindow && (
+        <div
+          className="p-3 rounded-full bg-gray-700 text-white flex items-center gap-2"
+          title="Participants"
+        >
+          <Users size={20} />
+          <span>{participantsCount}</span>
+        </div>
+      )}
 
       {/* Leave call */}
       <button
         onClick={onLeaveCall}
-        className="p-3 rounded-full bg-red-600 hover:bg-red-500 focus:ring-2 focus:ring-white"
+        className={`${buttonPadding} rounded-full bg-red-600 hover:bg-red-500 focus:ring-2 focus:ring-white`}
         title="Leave call"
       >
-        <PhoneOff className="text-white" />
+        <PhoneOff className="text-white" size={iconSize} />
       </button>
     </div>
   );
