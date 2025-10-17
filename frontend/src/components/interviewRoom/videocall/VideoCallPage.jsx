@@ -3,11 +3,16 @@ import { X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import VideoCallWindow from "./VideoCallWindow";
 import axios from "axios";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function VideoCallPage() {
   const { assessmentId, roomId } = useParams();
+  const { user} = useAuth();
   // console.log("roomroomId : ", roomId)
-  const userId = "guest-" + Math.random().toString(36).substring(2, 10);
+  console.log(user);
+  console.log("video call user")
+  console.log(user.id);
+  const userId = user.id;
 
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
