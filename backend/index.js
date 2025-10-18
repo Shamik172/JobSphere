@@ -58,7 +58,10 @@ app.use(cookieParser());
 app.use('/api/problem', problemRoutes);
 
 app.use("/api/questions", QuestionFetchRouter);
-app.use("/api/assessments", assessmentRoutes);
+app.use("/api/assessments",(req, res, next)=>{
+  console.log(req.url);
+  next();
+}, assessmentRoutes);
 app.use("/api/code",codeRoutes);
 app.use("/api/interviewer",interviewerRoutes);
 app.use("/api/candidate", candidateRoutes);
