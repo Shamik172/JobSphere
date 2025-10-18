@@ -1,7 +1,6 @@
 // routes/interviewerRoutes.js
 const express = require("express");
 const router = express.Router();
-const upload = require("../config/multer"); // multer for file uploads
 const { protectInterviewer } = require("../middlewares/authMiddleware");
 
 const {
@@ -10,10 +9,10 @@ const {
   logout,
   deleteAccount,
   verifyAuth,
-  getProfile,
-  updateProfile,
-  uploadProfilePic,
 } = require("../controllers/interviewerController");
+
+const interviewerProfileController = require("../controllers/interviewerProfileController")
+const upload = require("../middlewares/upload"); // updated multer
 
 // ----------------- AUTH -----------------
 router.post("/signup", signup);
@@ -22,11 +21,18 @@ router.post("/logout", logout);
 router.get("/verify", verifyAuth);
 
 // ----------------- PROFILE -----------------
-router.get("/profile",  protectInterviewer, getProfile); // get profile info
-router.post("/update",  protectInterviewer, updateProfile); // update profile info
+router.get('/profile', protectInterviewer, interviewerProfileController.getProfile);
+router.post('/profile/update', protectInterviewer, interviewerProfileController.updateProfile);
+router.post(
+  "/profile/upload",
+  protectInterviewer,
+  upload.fields([
+    { name: "profilePic", maxCount: 1 },
+    { name: "companyProof", maxCount: 1 },
+  ]),
+  interviewerProfileController.uploadFiles
+);
 
-
-router.post("/profile-pic", protectInterviewer, upload.single("image"), uploadProfilePic); // upload profile pic
 
 // ----------------- DELETE ACCOUNT -----------------
 router.delete("/delete", protectInterviewer, deleteAccount);

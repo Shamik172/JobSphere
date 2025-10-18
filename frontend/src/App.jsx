@@ -11,12 +11,12 @@ import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
 import UpcomingAssessments from "./components/assessment/UpcomingAssessment";
 import Navbar from "./Navbar";
 import ProtectedRoute from "./ProtectedRoute";
-import InterviewProfile from "./components/profilePage/interviewProfile";
 import NotFound from "./NotFound";
 import MyAssessment from "./components/candidate/MyAssessment";
 
 // Import the notification mount function
 import { mountNotifications } from "./notification/Notification";
+import InterviewerAndCandidateProfile from "./components/profilePage/InterviewerAndCandidateProfile"
 
 function AppContent() {
   const location = useLocation();
@@ -96,10 +96,10 @@ function AppContent() {
           }
         />
         <Route
-          path="/interviewProfile"
+          path="/profile"
           element={
-            <ProtectedRoute allowedRoles={["interviewer"]}>
-              <InterviewProfile />
+            <ProtectedRoute>
+              <InterviewerAndCandidateProfile />
             </ProtectedRoute>
           }
         />
