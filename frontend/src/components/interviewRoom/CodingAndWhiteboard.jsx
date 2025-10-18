@@ -61,41 +61,41 @@ const CodingAndWhiteboard = () => {
 
       {/* Step 3: Wrap the video window in the Rnd component */}
       {showVideo && (
-  <Rnd
-    size={isMinimized ? { width: videoDimensions.width, height: 30 } : videoDimensions}
-    position={videoPosition}
-    onDragStop={(e, d) => setVideoPosition({ x: d.x, y: d.y })}
-    onResizeStop={(e, direction, ref, delta, position) => {
-      setVideoDimensions({
-        width: ref.style.width,
-        height: ref.style.height,
-      });
-      setVideoPosition(position);
-    }}
-    minWidth={200}
-    minHeight={isMinimized ? 30 : 150}
-    bounds="parent"
-    className="bg-white/20 backdrop-blur-lg border border-white/40 rounded-xl shadow-lg overflow-hidden z-50 flex flex-col"
-    enableResizing={!isMinimized}
-  >
-    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-400 to-blue-600 cursor-move h-7 px-2">
-      {!isMinimized && <span className="text-xs text-white font-medium">Video Call</span>}
-      <div className="flex ml-auto">
-        <button onClick={handleMinimizeToggle} className="text-white hover:text-white/80 mx-1 p-1">
-          {isMinimized ? <Square size={12} /> : <Minus size={12} />}
-        </button>
-        <button onClick={() => setShowVideo(false)} className="text-white hover:text-white/80 p-1">
-          <X size={12} />
-        </button>
-      </div>
-    </div>
-    <div className="flex-1">
-      <div className={isMinimized ? 'hidden' : 'h-full'}>
-        <VideoCallWindow roomId={roomId} isMiniVideoCallWindow={true}/>
-      </div>
-    </div>
-  </Rnd>
-)}
+        <Rnd
+          size={isMinimized ? { width: videoDimensions.width, height: 30 } : videoDimensions}
+          position={videoPosition}
+          onDragStop={(e, d) => setVideoPosition({ x: d.x, y: d.y })}
+          onResizeStop={(e, direction, ref, delta, position) => {
+            setVideoDimensions({
+              width: ref.style.width,
+              height: ref.style.height,
+            });
+            setVideoPosition(position);
+          }}
+          minWidth={200}
+          minHeight={isMinimized ? 30 : 150}
+          bounds="parent"
+          className="bg-white/20 backdrop-blur-lg border border-white/40 rounded-xl shadow-lg overflow-hidden z-50 flex flex-col"
+          enableResizing={!isMinimized}
+        >
+          <div className="flex items-center justify-between bg-gradient-to-r from-indigo-400 to-blue-600 cursor-move h-7 px-2">
+            {!isMinimized && <span className="text-xs text-white font-medium">Video Call</span>}
+            <div className="flex ml-auto">
+              <button onClick={handleMinimizeToggle} className="text-white hover:text-white/80 mx-1 p-1">
+                {isMinimized ? <Square size={12} /> : <Minus size={12} />}
+              </button>
+              <button onClick={() => setShowVideo(false)} className="text-white hover:text-white/80 p-1">
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className={isMinimized ? 'hidden' : 'h-full'}>
+              <VideoCallWindow roomId={roomId} isMiniVideoCallWindow={true}/>
+            </div>
+          </div>
+        </Rnd>
+      )}
     </div>
   );
 };

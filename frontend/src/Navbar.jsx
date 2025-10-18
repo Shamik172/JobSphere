@@ -40,7 +40,7 @@ export default function Navbar() {
           >
             Upcoming Assessments
           </Link>
-          <Link to="/interviewProfile" className={linkClass("/interviewProfile")}>
+          <Link to="/profile" className={linkClass("/profile")}>
             Interview Profile
           </Link>
         </>
