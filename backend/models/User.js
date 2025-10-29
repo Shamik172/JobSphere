@@ -60,12 +60,15 @@ const Interviewer = User.discriminator('interviewer', new mongoose.Schema({
   company: { type: String, required: false },
   department: { type: String, required: false },
   position: { type: String, required: false }, // 🌟 Newly added field
+  companyProof: { type: String },
 }));
 
 // 👨‍💻 CANDIDATE SCHEMA (Resume, Portfolio)
 const Candidate = User.discriminator('candidate', new mongoose.Schema({
   resume_url: { type: String },
-  portfolio_url: { type: String },
+  education: { type: String },
+  skills: { type: [String] },
+  experience: { type: String },
 }));
 
 // 6️⃣ Export All Models

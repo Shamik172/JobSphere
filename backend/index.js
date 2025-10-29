@@ -55,6 +55,13 @@ app.use(cookieParser());
 //   res.send("hello")
 // });
 
+
+// to check path api/profile/...
+// app.use((req,res,next) => {
+//   console.log(req.url)
+//   next()
+// })
+
 app.use('/api/problem', problemRoutes);
 
 app.use("/api/questions", QuestionFetchRouter);
