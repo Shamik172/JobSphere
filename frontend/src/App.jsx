@@ -17,6 +17,7 @@ import MyAssessment from "./components/candidate/MyAssessment";
 // Import the notification mount function
 import { mountNotifications } from "./notification/Notification";
 import InterviewerAndCandidateProfile from "./components/profilePage/InterviewerAndCandidateProfile"
+import CandidatePracticesQuestion from "./components/home/homecomponents/CandidatePracticesQuestion";
 
 function AppContent() {
   const location = useLocation();
@@ -108,6 +109,15 @@ function AppContent() {
           element={
             <ProtectedRoute allowedRoles={["candidate"]}>
               <MyAssessment />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/candidatePracticesQuestion/:questionId"
+          element={
+            <ProtectedRoute allowedRoles={["candidate"]}>
+              <CandidatePracticesQuestion />
             </ProtectedRoute>
           }
         />

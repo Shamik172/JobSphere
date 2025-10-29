@@ -1,9 +1,31 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Code2, Laptop2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function CandidateHeroSection() {
+  const [questions, setQuestions] = useState([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Fetch 5 random questions
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/api/questions/random`,
+          { withCredentials: true }
+        );
+        setQuestions(res.data.data);
+      } catch (err) {
+        console.error("Error fetching questions:", err);
+      }
+    };
+    fetchQuestions();
+  }, []);
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center py-16">
       {/* Left side - heading and text */}
@@ -24,7 +46,8 @@ export default function CandidateHeroSection() {
           transition={{ delay: 0.15 }}
           className="mt-6 text-base text-slate-600 max-w-xl"
         >
-          Prepare confidently with interactive mock interviews — featuring live code editor, video chat, and instant feedback.
+          Prepare confidently with interactive mock interviews — featuring live
+          code editor, video chat, and instant feedback.
         </motion.p>
 
         <div className="mt-8 flex flex-wrap gap-4">
@@ -65,81 +88,32 @@ export default function CandidateHeroSection() {
         </div>
       </div>
 
-      {/* Right side - mock interview preview */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="relative mx-auto w-full max-w-2xl"
-      >
-        <div className="rounded-2xl shadow-2xl overflow-hidden border border-slate-100 bg-white">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-pink-400" />
-              <div>
-                <div className="font-semibold">Mock Room — DSA Practice</div>
-                <div className="text-xs text-slate-500">Room ID: DS-1457</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                Practicing
-              </span>
-              <span>00:08:26</span>
-            </div>
-          </div>
-
-          {/* Body grid */}
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-0">
-            {/* Participants */}
-            <div className="col-span-1 md:col-span-1 p-3 border-r border-slate-100 bg-slate-50">
-              <div className="text-xs font-medium text-slate-600">
-                Participants
-              </div>
-              <ul className="mt-3 space-y-3">
-                <li className="text-sm">You</li>
-                <li className="text-sm">AI Interviewer</li>
-              </ul>
-            </div>
-
-            {/* Code editor preview */}
-            <div className="col-span-2 md:col-span-3 p-3">
-              <div className="w-full h-44 bg-slate-900 rounded-md text-white p-3 font-mono text-sm overflow-auto">
-                {
-                  `// DSA Challenge: Reverse a Linked List
-function reverseList(head) {
-  let prev = null;
-  let current = head;
-  while (current) {
-    let next = current.next;
-    current.next = prev;
-    prev = current;
-    current = next;
-  }
-  return prev;
-}`
-                }
-              </div>
-
-              <div className="mt-3 flex items-center gap-3">
-                <button className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold">
-                  Run Code
-                </button>
-                <button className="px-3 py-2 rounded-md border border-slate-200 text-sm">
-                  Get Hint
-                </button>
-                <button className="px-3 py-2 rounded-md border border-slate-200 text-sm">
-                  View Solution
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 text-xs text-slate-500">
-          Example mock coding room — collaborative code editor, participants,
-          and practice tools in one place.
+      {/* Right side - Practice Questions */}
+      <motion.div className="relative mx-auto w-full max-w-2xl">
+        <div className="rounded-2xl shadow-2xl overflow-hidden border border-slate-100 bg-white p-5">
+          <h2 className="text-lg font-semibold mb-4">🧩 Practice Questions</h2>
+          {questions.length === 0 ? (
+            <p className="text-sm text-slate-500">Loading questions...</p>
+          ) : (
+            <ul className="space-y-3">
+              {questions.map((q) => (
+                <li
+                  key={q._id}
+                  className="flex justify-between items-center border p-3 rounded-lg hover:bg-slate-50"
+                >
+                  <span className="font-medium text-slate-700">{q.title}</span>
+                  <button
+                    onClick={() =>
+                      navigate(`/candidatePracticesQuestion/${q._id}`)
+                    }
+                    className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  >
+                    Practice
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </motion.div>
     </section>

@@ -5,7 +5,10 @@ import CodeEditor from "./codingComponents/CodeEditor";
 import SubmissionControls from "./codingComponents/SubmissionControls";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
 
-const CodingPanel = ({ questionId }) => {
+const CodingPanel = ({ questionId, isPracticeSession = false, userId }) => {
+  console.log("questionId", questionId);
+  console.log("isPracticeSession", isPracticeSession);
+  console.log("userId", userId);
   const [language, setLanguage] = useState("javascript");
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,69 @@ const CodingPanel = ({ questionId }) => {
   const leftRef = useRef(null);
   const codeRef = useRef(null);
 
-  const { sessionCode, updateCode } = useCollabSocket();
+
+  const [practiceCode, setPracticeCode] = useState("// Loading session...");
+  const codeDebounceTimeout = useRef(null);
+  const autoSaveInterval = useRef(null);
+
+  const collabContext = useCollabSocket(); // { sessionCode, updateCode }
+
+  // Decide which code & update function to use
+  const sessionCode = isPracticeSession ? practiceCode : collabContext.sessionCode;
+  const updateCode = isPracticeSession
+    ? (newCode) => {
+      setPracticeCode(newCode);
+      if (codeDebounceTimeout.current) clearTimeout(codeDebounceTimeout.current);
+      codeDebounceTimeout.current = setTimeout(() => {
+        console.log("User typing...");
+      }, 500);
+    }
+    : collabContext.updateCode;
+
+const practiceCodeRef = useRef(practiceCode);
+
+// keep ref updated
+useEffect(() => {
+  practiceCodeRef.current = practiceCode;
+}, [practiceCode]);
+
+useEffect(() => {
+  if (!isPracticeSession) return;
+
+  // Fetch only once on mount
+  const fetchSession = async () => {
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/candidate/fetchAttemptCode`,
+        { questionId, userId },
+        { withCredentials: true }
+      );
+      console.log("ldfjf ",res)
+      setPracticeCode(res.data.final_code || "// Start coding...");
+    } catch (err) {
+      console.error("Error fetching session:", err);
+    }
+  };
+  fetchSession();
+
+  // Auto-save every 1s
+  const saveInterval = setInterval(async () => {
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/candidate/saveAttemptCode`,
+        { questionId, userId, final_code: practiceCodeRef.current },
+        { withCredentials: true }
+      );
+      console.log("Auto-saved code");
+    } catch (err) {
+      console.error("Error auto-saving:", err);
+    }
+  }, 1000);
+
+  return () => clearInterval(saveInterval);
+}, []);
+
+
 
   // === Fetch Question ===
   useEffect(() => {
@@ -61,12 +126,12 @@ const CodingPanel = ({ questionId }) => {
       for (const test of question.runTestCases) {
         const res = await axios.post(
           `${import.meta.env.VITE_BACKEND_URL}/api/code/run`,
-          { code: sessionCode, language, input: test.input },
+          { code: sessionCode, language, input: test.input }, //workit
           { withCredentials: true }
         );
 
 
-         if (!res.data.success) {
+        if (!res.data.success) {
           setRunResult({
             data: {
               error:

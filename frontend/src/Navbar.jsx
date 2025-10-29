@@ -50,7 +50,7 @@ export default function Navbar() {
     if (user.role === "candidate") {
       return (
         <>
-          <Link to="/candidateProfile" className={linkClass("/candidateProfile")}>
+          <Link to="/profile" className={linkClass("/profile")}>
             Candidate Profile
           </Link>
           <Link

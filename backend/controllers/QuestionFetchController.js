@@ -233,11 +233,37 @@ const addQuestionWithLinkUseAtcoder = async (req, res) => {
   }
 };
 
+
+// 🎯 Get 5 random questions with only id & title
+const getRandomQuestions = async (req, res) => {
+  try {
+    const questions = await Question.aggregate([
+      { $sample: { size: 5 } }, // randomly pick 5 documents
+      { $project: { _id: 1, title: 1 , url: 1} } // only return _id and title
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: questions.length,
+      data: questions
+    });
+  } catch (error) {
+    console.error('Error fetching random questions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching random questions',
+    });
+  }
+};
+
+
+
 module.exports = {
   addQuestionWithLink,
   getQuestionById,
   getAllAssessmentQuestions,
   deleteQuestion,
   runCandidateCode,
-  addQuestionWithLinkUseAtcoder
+  addQuestionWithLinkUseAtcoder,
+  getRandomQuestions
 };
