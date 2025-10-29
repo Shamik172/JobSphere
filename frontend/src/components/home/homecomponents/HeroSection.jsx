@@ -47,62 +47,69 @@ export default function HeroSection() {
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center py-16">
       {/* Left Section */}
-      <div>
-        <motion.h1
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-4xl sm:text-5xl font-extrabold leading-tight"
-        >
-          Hire smarter with{" "}
-          <span className="text-indigo-600">real-time coding interviews</span>
-        </motion.h1>
+      <div className="max-w-4xl mx-auto text-center md:text-left">
+  {/* Heading */}
+  <motion.h2
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight text-gray-900"
+  >
+    Hire smarter with{" "}
+    <span className="text-indigo-600">real-time coding interviews</span>
+  </motion.h2>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
-          className="mt-6 text-base text-slate-600 max-w-xl"
-        >
-          Conduct structured technical interviews with integrated video, collaborative code editor, and question management.
-        </motion.p>
+  {/* Description */}
+  <motion.p
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ delay: 0.15 }}
+  className="mt-6 text-sm md:text-base text-gray-700 max-w-xl"
+>
+  Conduct structured technical interviews with integrated video, collaborative code editor, and question management.
+</motion.p>
 
-        <div className="mt-8 flex flex-wrap gap-4">
-          <a
-            href="/assessment/upcoming_assessment"
-            className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-5 py-3 text-white font-semibold shadow hover:opacity-95"
-          >
-            Upcoming Assessments <ArrowRight size={16} />
-          </a>
-          <a
-            href="/create_assessment"
-            className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-5 py-3 text-sm font-medium hover:bg-slate-50"
-          >
-            Create Assessment
-          </a>
-        </div>
 
-        <div className="mt-6 flex items-center gap-6 text-sm text-slate-600">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-indigo-50 p-2">
-              <Star size={18} className="text-indigo-600" />
-            </div>
-            <div>
-              <div className="font-semibold">4.8/5</div>
-              <div className="text-xs">Interview experience</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-indigo-50 p-2">
-              <Users size={18} className="text-indigo-600" />
-            </div>
-            <div>
-              <div className="font-semibold">200+ companies</div>
-              <div className="text-xs">trust JobSphere</div>
-            </div>
-          </div>
-        </div>
+  {/* Action Buttons */}
+  <div className="mt-10 flex flex-wrap gap-4 justify-center md:justify-start">
+    <a
+      href="/assessment/upcoming_assessment"
+      className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-6 py-3 text-white font-semibold shadow-lg hover:shadow-xl hover:opacity-95 transition-transform transform hover:-translate-y-1"
+    >
+      Upcoming Assessments <ArrowRight size={18} />
+    </a>
+    <a
+      href="/create_assessment"
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-slate-100 transition"
+    >
+      Create Assessment
+    </a>
+  </div>
+
+  {/* Stats */}
+  <div className="mt-8 flex flex-col sm:flex-row sm:gap-12 gap-6 justify-center md:justify-start text-gray-700">
+    <div className="flex items-center gap-3 bg-indigo-50/60 rounded-2xl p-3 shadow-sm">
+      <div className="rounded-full bg-indigo-100 p-2">
+        <Star size={20} className="text-indigo-600" />
       </div>
+      <div>
+        <div className="font-semibold text-gray-900">4.8/5</div>
+        <div className="text-xs text-gray-600">Interview experience</div>
+      </div>
+    </div>
+
+    <div className="flex items-center gap-3 bg-indigo-50/60 rounded-2xl p-3 shadow-sm">
+      <div className="rounded-full bg-indigo-100 p-2">
+        <Users size={20} className="text-indigo-600" />
+      </div>
+      <div>
+        <div className="font-semibold text-gray-900">200+ companies</div>
+        <div className="text-xs text-gray-600">trust JobSphere</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* Right Section - Carousel */}
       <motion.div
@@ -252,9 +259,9 @@ export default function HeroSection() {
 
                 {/* Middle - Questions & Participants */}
                 <div className="flex flex-1 gap-4 mt-3">
+               
                   {/* Left - Questions */}
-                  {/* Left - Questions */}
-                  <div className=" w-[60%] h-[220px]   rounded-xl p-4 shadow-inner border bg-white border-indigo-100 flex flex-col">
+                  <div className=" w-[60%] h-[240px]   rounded-xl p-4 shadow-inner border bg-white border-indigo-100 flex flex-col">
                     {/* Fixed Header */}
                     <div className="flex items-center justify-between border-b border-indigo-200 pb-2 mb-2">
                       <h4 className="font-semibold text-indigo-700 text-lg">Questions</h4>
