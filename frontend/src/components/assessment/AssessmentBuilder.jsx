@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
+import {notify} from "../../notification/Notification"
 
 // --- API Configuration ---
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
@@ -119,7 +120,7 @@ export default function AssessmentBuilder() {
   // --- Create Assessment ---
   const handleCreateAssessment = async () => {
     if (!assessment.name.trim() || !assessment.description.trim()) {
-      alert("Please provide a name and description.");
+      notify("Please provide a name and description.","success");
       return;
     }
     setIsSubmitting(true);
@@ -147,7 +148,7 @@ export default function AssessmentBuilder() {
       if (role === "candidate") setCandidateInput("");
       fetchAssessmentData();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify(`Error: ${err.message}`,"error");
     }
   };
 
@@ -161,10 +162,10 @@ export default function AssessmentBuilder() {
         setPreviewQuestion(result.question);
         setQuestionUrl("");
         await fetchAssessmentData();
-        alert("Question added successfully!");
+        notify("Question added successfully!","success");
       }
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify(`Error: ${err.message}`,"error");
     } finally {
       setIsAddingQuestion(false);
     }

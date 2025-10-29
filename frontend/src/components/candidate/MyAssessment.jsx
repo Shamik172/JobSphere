@@ -8,7 +8,7 @@ export default function MyAssessment() {
   useEffect(() => {
     const fetchAssessments = async () => {
       try {
-        // ✅ Correct template literal usage
+        // Correct template literal usage
         const res = await axios.get(
           `${import.meta.env.VITE_BACKEND_URL}/api/candidate/my_assessment`,
           { withCredentials: true }

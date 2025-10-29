@@ -8,6 +8,7 @@ import {
   Hand,
   Users,
 } from "lucide-react";
+import { notify } from "../../../notification/Notification";
 
 export default function VideoCallControls({
   localStreamRef,
@@ -64,9 +65,9 @@ export default function VideoCallControls({
       setMicOn(false);
       setCamOn(false);
       onMediaStateChange?.(false, false);
-      alert(
+      notify(
         "Please allow camera and microphone access to join the call. You can refresh the page to try again."
-      );
+      ,"warning");
     }
   };
 
@@ -112,7 +113,7 @@ export default function VideoCallControls({
 
   // Raise hand
   const raiseHand = () => {
-    alert("✋ Hand Raised");
+    notify("✋ Hand Raised");
   };
 
   // Controls bar
