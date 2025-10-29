@@ -1,5 +1,5 @@
 const express = require("express");
-const {signup, login, logout, deleteAccount, verifyAuth ,getMyAssessments} = require("../controllers/candidateController");
+const {signup, login, logout, deleteAccount, verifyAuth ,getMyAssessments, fetchAttemptCode, saveAttemptCode} = require("../controllers/candidateController");
 const { protectCandidate } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -28,6 +28,20 @@ router.post(
     { name: "resume", maxCount: 1 },
   ]),
   candidateProfileController.uploadFiles
+);
+
+
+
+router.post(
+  "/saveAttemptCode",
+  protectCandidate, // optional: only logged-in candidates
+  saveAttemptCode
+);
+
+router.post(
+  "/fetchAttemptCode",
+  protectCandidate, // optional: only logged-in candidates
+  fetchAttemptCode
 );
 
 module.exports = router;

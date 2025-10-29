@@ -1,5 +1,6 @@
 const AssessmentParticipant = require("../models/AssessmentParticipant");
 const { Candidate } = require("../models/User");
+const PracticeQuestion = require("../models/PracticeQuestion");
 const jwt = require("jsonwebtoken");
 
 
@@ -164,3 +165,69 @@ exports.getMyAssessments = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
+exports.fetchAttemptCode = async (req, res) => {
+  try {
+    const { questionId, userId } = req.body;
+
+    if (!questionId || !userId) {
+      return res.status(400).json({ message: "questionId and userId are required" });
+    }
+
+    // Find existing attempt
+    let attempt = await PracticeQuestion.findOne({
+      question_id: questionId,
+      candidate: userId,
+    });
+
+    if (!attempt) {
+      // If not found, return default code
+      return res.json({ final_code: "// Start coding here..." });
+    }
+
+    res.json({ final_code: attempt.final_code });
+  } catch (err) {
+    console.error("Error in fetchAttempt:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+// controllers/practiceController.js
+exports.saveAttemptCode = async (req, res) => {
+  try {
+    const { questionId, userId, final_code } = req.body;
+
+    if (!questionId || !userId || final_code === undefined) {
+      return res.status(400).json({ message: "questionId, userId and final_code are required" });
+    }
+
+    // Find existing attempt
+    let attempt = await PracticeQuestion.findOne({
+      question_id: questionId,
+      candidate: userId,
+    });
+
+    if (!attempt) {
+      // Create new if not found
+      attempt = new PracticeQuestion({
+        question_id: questionId,
+        candidate: userId,
+        final_code,
+      });
+    } else {
+      // Update existing
+      attempt.final_code = final_code;
+    }
+
+    await attempt.save();
+
+    res.json({ final_code: attempt.final_code });
+  } catch (err) {
+    console.error("Error in saveAttempt:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
