@@ -103,7 +103,7 @@ const CodingPanel = ({ questionId }) => {
   // === Handle Submit (Hidden Test Cases) ===
   const handleSubmit = async () => {
     if (!question?.hiddenTestCases?.length) {
-      alert("No hidden test cases.");
+      // alert("No hidden test cases.");
       return;
     }
 
