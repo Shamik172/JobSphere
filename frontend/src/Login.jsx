@@ -26,8 +26,7 @@ const Login = () => {
   }, [message]);
 
   const from =
-    location.state?.from?.pathname ||
-    (userType === "interviewer" ? "/" : "/assessment");
+    (userType === "interviewer" ? "/" : "/");
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
