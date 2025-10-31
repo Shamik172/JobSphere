@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./components/home/Home";
-import RoomPage from "./components/RoomPage";
+// import RoomPage from "./components/RoomPage";
 import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
 import Signup from "./Signup";
 import Login from "./Login";
@@ -38,14 +38,14 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
 
         {/* === Common Protected Routes (for all logged-in users) === */}
-        <Route
+        {/* <Route
           path="/room/:roomId"
           element={
             <ProtectedRoute>
               <RoomPage />
             </ProtectedRoute>
           }
-        />
+        /> */}
         <Route
           path="/assessment"
           element={
