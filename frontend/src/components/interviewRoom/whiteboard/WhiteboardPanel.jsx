@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { useCollabSocket } from "../../../context/CollabSocketContext";
 
@@ -10,6 +10,7 @@ export default function WhiteboardPanel() {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const { sessionElements, updateElements } = useCollabSocket();
   const [localElements, setLocalElements] = useState([]);
+  const isRemoteUpdate = useRef(false);
 
   // Step 2: Parse both files and combine their library items
   const allLibraryItems = useMemo(() => {
@@ -33,6 +34,7 @@ export default function WhiteboardPanel() {
   useEffect(() => {
     if (sessionElements && excalidrawAPI) {
       console.log("📥 Received remote elements, updating scene", sessionElements.length);
+      isRemoteUpdate.current = true; // mark this as remote
       excalidrawAPI.updateScene({ elements: sessionElements });
       setLocalElements(sessionElements);
     }
@@ -49,6 +51,11 @@ export default function WhiteboardPanel() {
           libraryItems: allLibraryItems, 
         }}
         onChange={(elements) => {
+          // Prevent loop: ignore changes immediately after remote sync
+          if (isRemoteUpdate.current) {
+            isRemoteUpdate.current = false;
+            return;
+          }
           console.log("📤 Local whiteboard change", elements.length);
           updateElements(elements);
         }}
