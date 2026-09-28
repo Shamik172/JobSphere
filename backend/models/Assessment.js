@@ -1,31 +1,50 @@
-
 const mongoose = require('mongoose');
 
-const assessmentSchema = new mongoose.Schema({
+const assessmentSchema = new mongoose.Schema(
+  {
     name: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
+      trim: true,
     },
     description: {
-        type: String,
+      type: String,
+      trim: true,
     },
     room_id: {
-        type: String,
-        required: true,
-        unique: true,
+      type: String,
+      required: true,
+      unique: true,
     },
     created_by: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Refers to the interviewer who created it
-        required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
-    // This is now an array of references to documents in the 'Question' collection
-    questions: [{
+    questions: [
+      {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Question',
-    }],
-}, { 
+      },
+    ],
+    scheduledAt: {
+      type: Date,
+      default: null,
+    },
+    duration: {
+      type: Number,
+      default: 60, // in minutes
+    },
+    // Lifecycle status of the overall assessment
+    status: {
+      type: String,
+      enum: ['Scheduled', 'In Progress', 'Completed'],
+      default: 'Scheduled',
+    },
+  },
+  { 
     timestamps: true 
-});
+  }
+);
 
 module.exports = mongoose.model('Assessment', assessmentSchema);

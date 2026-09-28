@@ -41,23 +41,16 @@ const io = new Server(server, {
 const allowedOrigins = [
   "http://localhost:5173",
   "https://jobsphere-o76y.onrender.com",
-  // Your upcoming Vercel domains:
-  /https:\/\/.*\.vercel\.app$/, // Allows any vercel preview deployment
+  "https://job-sphere-khaki.vercel.app",
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      if (!origin) return callback(null, true);
-      const isAllowed = allowedOrigins.some((allowed) =>
-        allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
-      );
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
+      return callback(new Error("CORS policy violation: " + origin));
     },
     credentials: true,
   })

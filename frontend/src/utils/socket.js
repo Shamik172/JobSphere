@@ -1,18 +1,12 @@
-// import { io } from "socket.io-client";
-// // const socket = io("http://localhost:8080"); //backend URL
-// const socket = io("https://jobsphere-backend-gnrj.onrender.com"); //backend URL
-// export default socket;
-
-
 import { io } from "socket.io-client";
 
 const SOCKET_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  "https://jobsphere-backend-gnrj.onrender.com";
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:8080";
 
 const socket = io(SOCKET_URL, {
   withCredentials: true,
   transports: ["websocket", "polling"],
+  autoConnect: false, // Prevents connecting before the user actually reaches call/collab views
 });
 
 export default socket;

@@ -13,19 +13,25 @@ const assessmentParticipantSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['interviewer', 'candidate'], // Restricts the value to one of these
+        enum: ['interviewer', 'candidate'],
         required: true,
     },
     status: {
         type: String,
-        enum: ['Invited', 'Accepted'],
-        default: 'Invited', // Sets a default value if not provided
+        enum: ['Invited', 'Accepted', 'Completed'],
+        default: 'Invited',
+    },
+    // Real-time call presence tracked via WebRTC / socket events
+    presence: {
+        type: String,
+        enum: ['Offline', 'In Call'],
+        default: 'Offline',
     },
 }, { 
     timestamps: true 
 });
 
-// This compound index ensures that a user cannot be added to the same assessment more than once.
+// Compound index to guarantee uniqueness per user per assessment
 assessmentParticipantSchema.index({ assessment: 1, user: 1 }, { unique: true });
 
 module.exports = mongoose.model('AssessmentParticipant', assessmentParticipantSchema);

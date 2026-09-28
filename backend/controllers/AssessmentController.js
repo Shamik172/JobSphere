@@ -1,5 +1,4 @@
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const Assessment = require("../models/Assessment");
 const Question = require("../models/Question");
@@ -7,10 +6,91 @@ const AssessmentParticipant = require("../models/AssessmentParticipant");
 const { Interviewer, Candidate } = require("../models/User");
 const sendEmail = require("../utils/mailSender");
 
+// 🔹 Reusable Styled HTML Email Template for Brevo
+const buildEmailTemplate = ({
+  role,
+  assessmentName,
+  hostName,
+  scheduledText,
+  primaryUrl,
+  secondaryUrl,
+  credentials,
+}) => {
+  const isInterviewer = role === "interviewer";
+  const brandColor = isInterviewer ? "#6366f1" : "#a855f7";
+  const roleTitle = isInterviewer ? "Co-Interviewer & Evaluator" : "Candidate Assessment";
+
+  const credentialsBlock = credentials
+    ? `
+      <div style="background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px 20px; margin: 24px 0;">
+        <p style="margin: 0; font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Auto-Generated Access Account</p>
+        <p style="margin: 8px 0 0 0; font-size: 14px; color: #e2e8f0;">Temporary Password: <strong style="color: #38bdf8; font-family: monospace; font-size: 16px; background: #1e293b; padding: 2px 8px; border-radius: 6px;">${credentials.password}</strong></p>
+        <p style="margin: 6px 0 0 0; font-size: 12px; color: #64748b;">You can log in to view your dashboard using your email and this temporary key.</p>
+      </div>
+    `
+    : "";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="margin:0; padding:30px 10px; background-color:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#e2e8f0;">
+      <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; background:#131b2e; border:1px solid #1e293b; border-radius:18px; overflow:hidden; box-shadow:0 12px 35px rgba(0,0,0,0.5);">
+        <tr>
+          <td style="background:linear-gradient(135deg, ${brandColor} 0%, #3b82f6 100%); padding:28px 32px;">
+            <span style="font-size:20px; font-weight:800; letter-spacing:-0.03em; color:#ffffff;">JobSphere</span>
+            <div style="margin-top:6px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.85); text-transform:uppercase; letter-spacing:0.08em;">${roleTitle}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <h1 style="margin:0 0 12px 0; font-size:22px; font-weight:700; color:#ffffff;">Invitation: ${assessmentName}</h1>
+            <p style="margin:0 0 20px 0; font-size:15px; line-height:1.6; color:#94a3b8;">
+              ${hostName ? `<strong>${hostName}</strong> has invited you` : "You have been invited"} to participate in the upcoming technical assessment on JobSphere.
+            </p>
+
+            ${scheduledText ? `
+              <div style="display:inline-block; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px 16px; margin-bottom:20px;">
+                <span style="color:#38bdf8; font-size:13px; font-weight:600;">🕒 Scheduled: </span>
+                <span style="color:#f1f5f9; font-size:13px;">${scheduledText}</span>
+              </div>
+            ` : ""}
+
+            ${credentialsBlock}
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0 16px 0;">
+              <tr>
+                <td align="center" style="border-radius:10px; background:${brandColor};">
+                  <a href="${primaryUrl}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px;">
+                    ${isInterviewer ? "Open Assessment Hub" : "Enter Interview Room"}
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            ${secondaryUrl ? `
+              <p style="margin:16px 0 0 0; font-size:13px; color:#64748b;">
+                Direct Live Video Call Link: <br/>
+                <a href="${secondaryUrl}" style="color:#38bdf8; text-decoration:underline; word-break:break-all;">${secondaryUrl}</a>
+              </p>
+            ` : ""}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 32px; background:#0f172a; border-top:1px solid #1e293b; font-size:12px; color:#64748b; text-align:center;">
+            JobSphere Collaboration Platform • Automated notification
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+};
+
 // --- 1. Create Assessment ---
 exports.createAssessment = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, scheduledAt, duration } = req.body;
 
     if (!name || !description) {
       return res.status(400).json({ message: "Name and description are required." });
@@ -19,6 +99,8 @@ exports.createAssessment = async (req, res) => {
     const newAssessment = new Assessment({
       name,
       description,
+      scheduledAt: scheduledAt || null,
+      duration: duration || 60,
       room_id: `room-${uuidv4()}`,
       created_by: req.user._id,
     });
@@ -49,7 +131,9 @@ exports.getAssessmentDetails = async (req, res) => {
       return res.status(403).json({ message: "Access forbidden. Candidates cannot view assessment details." });
     }
 
-    const assessment = await Assessment.findById(assessmentId).populate("questions");
+    const assessment = await Assessment.findById(assessmentId)
+      .populate("questions")
+      .populate("created_by", "name email");
 
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });
@@ -62,21 +146,30 @@ exports.getAssessmentDetails = async (req, res) => {
       _id: assessment._id,
       name: assessment.name,
       description: assessment.description,
+      scheduledAt: assessment.scheduledAt,
+      duration: assessment.duration,
       roomId: assessment.room_id,
+      createdBy: assessment.created_by,
       questions: assessment.questions || [],
       interviewers: participants
         .filter((p) => p.role === "interviewer" && p.user)
         .map((p) => ({
+          participantId: p._id,
+          userId: p.user._id,
           name: p.user.name,
           email: p.user.email,
           status: p.status,
+          presence: p.presence, // added
         })),
       candidates: participants
         .filter((p) => p.role === "candidate" && p.user)
         .map((p) => ({
+          participantId: p._id,
+          userId: p.user._id,
           name: p.user.name,
           email: p.user.email,
           status: p.status,
+          presence: p.presence, // added
         })),
     };
 
@@ -93,7 +186,7 @@ exports.getMyAssessments = async (req, res) => {
 
     // Assessments created by this user
     const hosted = await Assessment.find({ created_by: userId })
-      .select("_id name description createdAt updatedAt")
+      .select("_id name description scheduledAt duration createdAt updatedAt")
       .sort({ createdAt: -1 });
 
     // Assessments where user is invited as co-interviewer (exclude self-hosted)
@@ -103,7 +196,7 @@ exports.getMyAssessments = async (req, res) => {
     })
       .populate({
         path: "assessment",
-        select: "_id name description created_by createdAt updatedAt",
+        select: "_id name description scheduledAt duration created_by createdAt updatedAt",
       })
       .sort({ createdAt: -1 });
 
@@ -113,6 +206,8 @@ exports.getMyAssessments = async (req, res) => {
         _id: p.assessment._id,
         name: p.assessment.name,
         description: p.assessment.description,
+        scheduledAt: p.assessment.scheduledAt,
+        duration: p.assessment.duration,
         createdAt: p.assessment.createdAt,
         updatedAt: p.assessment.updatedAt,
       }));
@@ -124,27 +219,27 @@ exports.getMyAssessments = async (req, res) => {
   }
 };
 
-// --- 4. Invite Participant (FIXED: No Password Overwriting + Hashed Defaults + Clean URLs) ---
-// Inside assessmentController.js -> inviteParticipant
+// --- 4. Invite Participant (Custom Name + Single Hash + Clean Template) ---
 exports.inviteParticipant = async (req, res) => {
   try {
     const { id: assessmentId } = req.params;
-    const { email, role } = req.body;
+    const { email, role, name } = req.body;
 
     if (!email || !role) {
       return res.status(400).json({ message: "Email and role are required." });
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const customName = name && name.trim() ? name.trim() : cleanEmail.split("@")[0];
 
-    const assessment = await Assessment.findById(assessmentId);
+    const assessment = await Assessment.findById(assessmentId).populate("created_by", "name");
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });
     }
 
     const UserModel = role === "interviewer" ? Interviewer : Candidate;
 
-    // 3. Check if user already exists in DB
+    // Check if user already exists in DB
     let user = await UserModel.findOne({ email: cleanEmail });
     let isNewUser = false;
     let temporaryPassword = null;
@@ -156,7 +251,7 @@ exports.inviteParticipant = async (req, res) => {
 
       // Pass raw temporaryPassword — Mongoose UserSchema.pre('save') will hash it ONCE!
       user = await UserModel.create({
-        name: cleanEmail.split("@")[0],
+        name: customName,
         email: cleanEmail,
         password: temporaryPassword,
         role,
@@ -184,54 +279,26 @@ exports.inviteParticipant = async (req, res) => {
     const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment._id}/${assessment.room_id}`;
     const workspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
 
-    let emailSubject = `JobSphere: Invitation for ${assessment.name}`;
-    let emailBody = "";
+    const scheduledText = assessment.scheduledAt
+      ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+      : null;
 
-    const credentialsSection = isNewUser
-      ? `
-        <div style="background-color: #f3f4f6; border-left: 4px solid #4f46e5; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-          <p style="margin: 0; font-size: 14px; color: #374151;">An account has been created for your email on JobSphere:</p>
-          <p style="margin: 6px 0 0 0; font-size: 14px; font-weight: bold; color: #111827;">Temporary Password: <code style="background: #e5e7eb; padding: 2px 6px; border-radius: 3px;">${temporaryPassword}</code></p>
-          <p style="margin: 6px 0 0 0; font-size: 12px; color: #6b7280;">Log in with your email and this password to access your dashboard.</p>
-        </div>
-      `
-      : "";
+    const emailSubject = `JobSphere Invitation: ${assessment.name}`;
+    const emailHtml = buildEmailTemplate({
+      role,
+      assessmentName: assessment.name,
+      hostName: assessment.created_by?.name || req.user?.name,
+      scheduledText,
+      primaryUrl: role === "interviewer" ? workspaceUrl : liveInterviewUrl,
+      secondaryUrl: role === "interviewer" ? liveInterviewUrl : null,
+      credentials: isNewUser ? { password: temporaryPassword } : null,
+    });
 
-    if (role === "interviewer") {
-      emailBody = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6; color: #1f2937;">
-          <h2 style="color: #4338ca;">You're Invited to Collaborate</h2>
-          <p>You have been invited to be a <strong>co-interviewer</strong> for <strong>${assessment.name}</strong>.</p>
-          ${credentialsSection}
-          <p>Collaborate with the team, manage question lists, and review candidates:</p>
-          <p style="margin: 20px 0;">
-            <a href="${workspaceUrl}" style="background-color: #4f46e5; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Open Assessment Hub</a>
-          </p>
-          <p style="font-size: 13px; color: #6b7280;">When it is time for the live interview, join the video room directly:</p>
-          <p><a href="${liveInterviewUrl}" style="color: #4f46e5; text-decoration: underline;">${liveInterviewUrl}</a></p>
-        </div>
-      `;
-    } else {
-      emailBody = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6; color: #1f2937;">
-          <h2 style="color: #7c3aed;">Invitation to Technical Interview</h2>
-          <p>You have been invited to take the technical assessment for <strong>${assessment.name}</strong>.</p>
-          ${credentialsSection}
-          <p>At your scheduled time, enter your interview session using the button below:</p>
-          <p style="margin: 20px 0;">
-            <a href="${liveInterviewUrl}" style="background-color: #7c3aed; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Join Live Assessment</a>
-          </p>
-          <p style="font-size: 13px; color: #6b7280;">Make sure your camera and microphone permissions are enabled prior to joining.</p>
-        </div>
-      `;
-    }
-
-    // Attempt email delivery
+    // Attempt email delivery via Brevo
     try {
-      await sendEmail(cleanEmail, emailSubject, emailBody);
+      await sendEmail(cleanEmail, emailSubject, emailHtml);
     } catch (mailError) {
       console.error("Mail dispatch failed, rolling back participant entry:", mailError);
-      // Clean up participant entry if email failed to avoid phantom invitations
       await AssessmentParticipant.findByIdAndDelete(newParticipant._id);
       return res.status(502).json({
         message: `Failed to deliver email to ${cleanEmail}. Please verify SMTP settings.`,
@@ -242,6 +309,8 @@ exports.inviteParticipant = async (req, res) => {
     return res.status(200).json({
       message: `Successfully invited ${cleanEmail}`,
       participant: {
+        participantId: newParticipant._id,
+        userId: user._id,
         name: user.name,
         email: user.email,
         role,
@@ -254,7 +323,61 @@ exports.inviteParticipant = async (req, res) => {
   }
 };
 
-// --- 5. Get Latest Assessments ---
+// --- 5. Resend Invitation Email ---
+exports.resendInvite = async (req, res) => {
+  try {
+    const { id: assessmentId } = req.params;
+    const { participantId } = req.body;
+
+    const participant = await AssessmentParticipant.findById(participantId).populate("user", "name email");
+    if (!participant) return res.status(404).json({ message: "Participant record not found." });
+
+    const assessment = await Assessment.findById(assessmentId).populate("created_by", "name");
+    if (!assessment) return res.status(404).json({ message: "Assessment not found." });
+
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment._id}/${assessment.room_id}`;
+    const workspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
+
+    const scheduledText = assessment.scheduledAt
+      ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+      : null;
+
+    const emailHtml = buildEmailTemplate({
+      role: participant.role,
+      assessmentName: assessment.name,
+      hostName: assessment.created_by?.name || req.user?.name,
+      scheduledText,
+      primaryUrl: participant.role === "interviewer" ? workspaceUrl : liveInterviewUrl,
+      secondaryUrl: participant.role === "interviewer" ? liveInterviewUrl : null,
+      credentials: null,
+    });
+
+    await sendEmail(participant.user.email, `JobSphere Reminder: Invitation for ${assessment.name}`, emailHtml);
+
+    res.status(200).json({ message: `Invitation resent to ${participant.user.email}` });
+  } catch (err) {
+    res.status(500).json({ message: "Error resending invitation", error: err.message });
+  }
+};
+
+// --- 6. Remove Participant ---
+exports.removeParticipant = async (req, res) => {
+  try {
+    const { id: assessmentId, participantId } = req.params;
+    const participant = await AssessmentParticipant.findOneAndDelete({
+      _id: participantId,
+      assessment: assessmentId,
+    });
+
+    if (!participant) return res.status(404).json({ message: "Participant not found." });
+    res.status(200).json({ message: "Participant removed successfully." });
+  } catch (err) {
+    res.status(500).json({ message: "Error removing participant", error: err.message });
+  }
+};
+
+// --- 7. Get Latest Assessments ---
 exports.getLatestAssessments = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -303,5 +426,107 @@ exports.getLatestAssessments = async (req, res) => {
   } catch (error) {
     console.error("Error fetching assessments:", error);
     res.status(500).json({ message: "Error fetching latest assessments" });
+  }
+};
+
+
+// --- 8. Acknowledge Invitation (Invited -> Accepted) ---
+// Triggered when an invited interviewer loads /assessments/:id
+exports.acknowledgeInvitation = async (req, res) => {
+  try {
+    const { id: assessmentId } = req.params;
+    const userId = req.user._id;
+
+    const participant = await AssessmentParticipant.findOne({
+      assessment: assessmentId,
+      user: userId,
+    });
+
+    if (!participant) {
+      return res.status(404).json({ message: "Participant record not found." });
+    }
+
+    if (participant.status === "Invited") {
+      participant.status = "Accepted";
+      await participant.save();
+    }
+
+    res.status(200).json({ message: "Invitation acknowledged", status: participant.status });
+  } catch (error) {
+    res.status(500).json({ message: "Error acknowledging invite", error: error.message });
+  }
+};
+
+// --- 9. Verify Video Room Access ---
+// Checks if the logged-in candidate or interviewer is actually registered in this assessment
+exports.verifyRoomAccess = async (req, res) => {
+  try {
+    const { id: assessmentId, roomId } = req.params;
+    const userId = req.user._id;
+
+    const assessment = await Assessment.findById(assessmentId);
+    if (!assessment) {
+      return res.status(404).json({ message: "Assessment does not exist." });
+    }
+
+    if (assessment.room_id !== roomId) {
+      return res.status(400).json({ message: "Invalid room identifier." });
+    }
+
+    const participant = await AssessmentParticipant.findOne({
+      assessment: assessmentId,
+      user: userId,
+    });
+
+    if (!participant) {
+      return res.status(403).json({
+        message: "Forbidden: You are not an enrolled participant for this assessment.",
+      });
+    }
+
+    // Automatically transition candidate to "Accepted" once they successfully verify into the call
+    if (participant.status === "Invited") {
+      participant.status = "Accepted";
+      await participant.save();
+    }
+
+    res.status(200).json({
+      authorized: true,
+      role: participant.role,
+      status: participant.status,
+      assessmentName: assessment.name,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Verification failed", error: error.message });
+  }
+};
+
+// --- 10. Update Assessment Status (e.g. Host clicks "End Assessment") ---
+exports.updateAssessmentStatus = async (req, res) => {
+  try {
+    const { id: assessmentId } = req.params;
+    const { status } = req.body; // 'Scheduled' | 'In Progress' | 'Completed'
+
+    const assessment = await Assessment.findById(assessmentId);
+    if (!assessment) return res.status(404).json({ message: "Assessment not found" });
+
+    // Host interviewer guard
+    if (assessment.created_by.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Only the host can modify the assessment status." });
+    }
+
+    assessment.status = status;
+    await assessment.save();
+
+    if (status === "Completed") {
+      await AssessmentParticipant.updateMany(
+        { assessment: assessmentId, status: "Accepted" },
+        { status: "Completed" }
+      );
+    }
+
+    res.status(200).json({ message: `Assessment updated to ${status}`, assessment });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating status", error: error.message });
   }
 };
