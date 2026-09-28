@@ -186,6 +186,22 @@ const addQuestionWithLinkUseAtcoder = async (req, res) => {
       return res.status(404).json({ message: "Assessment not found" });
     
     console.log("go")
+    // --- Step 3: Check if Question Already Exists ---
+    const existingQuestion = await Question.findOne({ url: link });
+
+    if (existingQuestion) {
+      // Attach to assessment if not already linked
+      if (!assessment.questions.includes(existingQuestion._id)) {
+        assessment.questions.push(existingQuestion._id);
+        await assessment.save();
+      }
+
+      return res.status(200).json({
+        message: "Question already exists. Reused from database.",
+        question: existingQuestion,
+      });
+    }
+
     // --- Step 3: Fetch Problem Data from LeetCode ---
     const problem = await fetchAtCoderProblem(link);
     if (!problem)

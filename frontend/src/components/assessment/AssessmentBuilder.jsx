@@ -12,14 +12,13 @@ import {
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
-import {notify} from "../../notification/Notification"
+import { notify } from "../../notification/Notification";
 
-// --- API Configuration ---
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     throw new Error(
       errorData.message || "Something went wrong with the API request"
     );
@@ -43,7 +42,6 @@ const api = {
       method: "GET",
       credentials: "include",
     });
-    console.log("res: ", response)
     return handleResponse(response);
   },
 
@@ -68,10 +66,8 @@ const api = {
   },
 };
 
-// --- React Component ---
 export default function AssessmentBuilder() {
   const { id } = useParams();
-  // console.log("PARAM ID : ", id)
   const navigate = useNavigate();
 
   const [assessmentId, setAssessmentId] = useState(id || null);
@@ -79,9 +75,9 @@ export default function AssessmentBuilder() {
   const [interviewers, setInterviewers] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [questions, setQuestions] = useState([]);
-  const [roomId, setRoomId] = useState(id, null);
+  const [roomId, setRoomId] = useState(null);
 
-  const [isLoading, setIsLoading] = useState(!!id);
+  const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [error, setError] = useState(null);
@@ -91,36 +87,47 @@ export default function AssessmentBuilder() {
   const [questionUrl, setQuestionUrl] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState(null);
 
-  // --- Fetch Assessment ---
+  // Sync state if id param changes in URL
+  useEffect(() => {
+    setAssessmentId(id || null);
+    if (!id) {
+      setAssessment({ name: "", description: "" });
+      setInterviewers([]);
+      setCandidates([]);
+      setQuestions([]);
+      setRoomId(null);
+      setIsLoading(false);
+    }
+  }, [id]);
+
   const fetchAssessmentData = useCallback(async () => {
-    console.log("Assessment id : ", assessmentId)
     if (!assessmentId) return;
     setIsLoading(true);
     setError(null);
     try {
       const data = await api.getAssessmentDetails(assessmentId);
-      console.log("data in assessment : ", data)
-      setAssessment({ name: data.name, description: data.description });
-      setInterviewers(data.interviewers);
-      setCandidates(data.candidates);
-      setQuestions(data.questions);
-      setRoomId(data.roomId);
+      setAssessment({ name: data.name || "", description: data.description || "" });
+      setInterviewers(data.interviewers || []);
+      setCandidates(data.candidates || []);
+      setQuestions(data.questions || []);
+      setRoomId(data.roomId || null);
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch assessment details:", err);
+      notify(`Failed to fetch assessment: ${err.message}`, "error");
     } finally {
       setIsLoading(false);
     }
   }, [assessmentId]);
 
   useEffect(() => {
-    fetchAssessmentData();
-  }, [fetchAssessmentData]);
+    if (assessmentId) {
+      fetchAssessmentData();
+    }
+  }, [assessmentId, fetchAssessmentData]);
 
-  // --- Create Assessment ---
   const handleCreateAssessment = async () => {
     if (!assessment.name.trim() || !assessment.description.trim()) {
-      notify("Please provide a name and description.","success");
+      notify("Please provide a name and description.", "error");
       return;
     }
     setIsSubmitting(true);
@@ -130,29 +137,30 @@ export default function AssessmentBuilder() {
         name: assessment.name,
         description: assessment.description,
       });
-      navigate(`/assessment/${newAssessment._id}`);
       setAssessmentId(newAssessment._id);
+      notify("Assessment created successfully!", "success");
+      navigate(`/assessments/${newAssessment._id}`);
     } catch (err) {
       setError(err.message);
+      notify(`Error: ${err.message}`, "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- Invite Function ---
   const handleInvite = async (email, role) => {
     if (!email.trim() || !assessmentId) return;
     try {
       await api.inviteParticipant(assessmentId, { email, role });
+      notify(`Invitation sent to ${email}`, "success");
       if (role === "interviewer") setInviteInput("");
       if (role === "candidate") setCandidateInput("");
       fetchAssessmentData();
     } catch (err) {
-      notify(`Error: ${err.message}`,"error");
+      notify(`Error: ${err.message}`, "error");
     }
   };
 
-  // --- Add Question via URL ---
   const handleAddQuestion = async () => {
     if (!questionUrl.trim() || !assessmentId) return;
     setIsAddingQuestion(true);
@@ -162,10 +170,10 @@ export default function AssessmentBuilder() {
         setPreviewQuestion(result.question);
         setQuestionUrl("");
         await fetchAssessmentData();
-        notify("Question added successfully!","success");
+        notify("Question added successfully!", "success");
       }
     } catch (err) {
-      notify(`Error: ${err.message}`,"error");
+      notify(`Error: ${err.message}`, "error");
     } finally {
       setIsAddingQuestion(false);
     }
@@ -173,25 +181,29 @@ export default function AssessmentBuilder() {
 
   const isCreateMode = !assessmentId;
 
-  // --- Loading & Error UI ---
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-indigo-50">
         <Loader2 className="animate-spin text-indigo-600" size={48} />
-        <p className="ml-4 text-indigo-700 font-semibold">
-          Loading Assessment...
-        </p>
+        <p className="ml-4 text-indigo-700 font-semibold">Loading Assessment...</p>
       </div>
     );
+  }
 
-  if (error)
+  if (error && !isCreateMode) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-red-50 text-red-700 font-semibold text-lg">
-        Error: {error}
+      <div className="min-h-screen flex flex-col justify-center items-center bg-red-50 text-red-700">
+        <p className="font-semibold text-lg mb-4">Error: {error}</p>
+        <button
+          onClick={() => navigate("/assessments")}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm"
+        >
+          Back to Assessments
+        </button>
       </div>
     );
+  }
 
-  // --- MAIN UI ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-indigo-100 py-10 px-6">
       <motion.div
@@ -203,13 +215,8 @@ export default function AssessmentBuilder() {
         {/* LEFT PANEL */}
         <div className="md:col-span-1 bg-white rounded-2xl shadow-xl p-6 border border-indigo-100 space-y-6">
           {/* Interviewers */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl"
-          >
-            <h2 className="text-xl font-bold text-indigo-700 mb-3">
-              Interviewers
-            </h2>
+          <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl">
+            <h2 className="text-xl font-bold text-indigo-700 mb-3">Interviewers</h2>
             {interviewers.length > 0 ? (
               <ul className="space-y-2">
                 {interviewers.map((i, idx) => (
@@ -217,12 +224,11 @@ export default function AssessmentBuilder() {
                     key={idx}
                     className="flex justify-between items-center p-2 bg-indigo-50 rounded-md text-sm text-indigo-800 shadow-sm"
                   >
-                    {i.name}
+                    <span>{i.name || i.email}</span>
                     <span
-                      className={`text-xs font-semibold ${i.status === "Accepted"
-                          ? "text-emerald-600"
-                          : "text-indigo-400"
-                        }`}
+                      className={`text-xs font-semibold ${
+                        i.status === "Accepted" ? "text-emerald-600" : "text-indigo-500"
+                      }`}
                     >
                       {i.status}
                     </span>
@@ -230,20 +236,13 @@ export default function AssessmentBuilder() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-indigo-400 italic">
-                No interviewers invited yet.
-              </p>
+              <p className="text-sm text-indigo-400 italic">No interviewers invited yet.</p>
             )}
-          </motion.div>
+          </div>
 
           {/* Candidates */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-gradient-to-r from-purple-100 to-purple-200 p-4 rounded-xl"
-          >
-            <h2 className="text-xl font-bold text-purple-700 mb-3">
-              Candidates
-            </h2>
+          <div className="bg-gradient-to-r from-purple-100 to-purple-200 p-4 rounded-xl">
+            <h2 className="text-xl font-bold text-purple-700 mb-3">Candidates</h2>
             {candidates.length > 0 ? (
               <ul className="space-y-2">
                 {candidates.map((c, idx) => (
@@ -251,12 +250,11 @@ export default function AssessmentBuilder() {
                     key={idx}
                     className="flex justify-between items-center p-2 bg-purple-50 rounded-md text-sm text-purple-800 shadow-sm"
                   >
-                    {c.name}
+                    <span>{c.name || c.email}</span>
                     <span
-                      className={`text-xs font-semibold ${c.status === "Accepted"
-                          ? "text-emerald-600"
-                          : "text-purple-400"
-                        }`}
+                      className={`text-xs font-semibold ${
+                        c.status === "Accepted" ? "text-emerald-600" : "text-purple-500"
+                      }`}
                     >
                       {c.status}
                     </span>
@@ -264,11 +262,9 @@ export default function AssessmentBuilder() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-purple-400 italic">
-                No candidates invited yet.
-              </p>
+              <p className="text-sm text-purple-400 italic">No candidates invited yet.</p>
             )}
-          </motion.div>
+          </div>
         </div>
 
         {/* RIGHT PANEL */}
@@ -278,7 +274,7 @@ export default function AssessmentBuilder() {
               {isCreateMode ? "Create New Assessment" : assessment.name}
             </h1>
 
-            {!isCreateMode && (
+            {!isCreateMode && roomId && (
               <button
                 onClick={() => navigate(`/videocall/${assessmentId}/${roomId}`)}
                 className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold px-5 py-2 rounded-xl shadow-md hover:opacity-90 transition"
@@ -289,7 +285,7 @@ export default function AssessmentBuilder() {
             )}
           </div>
 
-          {/* Assessment Info */}
+          {/* Assessment Form Inputs */}
           <div className="space-y-4">
             <label className="block text-sm font-semibold text-indigo-700">
               Assessment Name
@@ -320,9 +316,8 @@ export default function AssessmentBuilder() {
             />
           </div>
 
-          {/* Invite + Question */}
+          {/* Action Sections (Invites + Questions) */}
           <fieldset disabled={isCreateMode} className="disabled:opacity-50">
-            {/* Invite Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
@@ -330,10 +325,10 @@ export default function AssessmentBuilder() {
                 </h3>
                 <div className="flex gap-2">
                   <input
-                    type="text"
+                    type="email"
                     value={inviteInput}
                     onChange={(e) => setInviteInput(e.target.value)}
-                    placeholder="Enter email"
+                    placeholder="Enter interviewer email"
                     className="flex-1 border border-indigo-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
@@ -351,7 +346,7 @@ export default function AssessmentBuilder() {
                 </h3>
                 <div className="flex gap-2">
                   <input
-                    type="text"
+                    type="email"
                     value={candidateInput}
                     onChange={(e) => setCandidateInput(e.target.value)}
                     placeholder="Enter candidate email"
@@ -367,7 +362,7 @@ export default function AssessmentBuilder() {
               </div>
             </div>
 
-            {/* Add Question */}
+            {/* Question Management */}
             <div className="space-y-2 pt-4">
               <h3 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
                 <FilePlus2 size={16} /> Add Questions via URL
@@ -383,10 +378,11 @@ export default function AssessmentBuilder() {
                 <button
                   onClick={handleAddQuestion}
                   disabled={isAddingQuestion}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${isAddingQuestion
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                    isAddingQuestion
                       ? "bg-indigo-400 cursor-not-allowed"
                       : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                    }`}
+                  }`}
                 >
                   {isAddingQuestion ? (
                     <>
@@ -403,9 +399,8 @@ export default function AssessmentBuilder() {
               {questions.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {questions.map((q) => (
-                    <motion.div
+                    <div
                       key={q._id}
-                      whileHover={{ scale: 1.02 }}
                       className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center shadow-sm"
                     >
                       <span className="text-sm text-indigo-800 font-medium">
@@ -417,14 +412,14 @@ export default function AssessmentBuilder() {
                       >
                         <Eye size={12} /> Preview
                       </button>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           </fieldset>
 
-          {/* Save Assessment */}
+          {/* Initial Creation Action */}
           {isCreateMode && (
             <div className="pt-4">
               <button

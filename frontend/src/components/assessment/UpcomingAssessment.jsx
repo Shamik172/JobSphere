@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Search, Loader2, Users, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
@@ -10,7 +11,7 @@ const handleResponse = async (res) => {
       const errorData = await res.json();
       throw new Error(errorData.message || "Failed to fetch data");
     } catch {
-      throw new Error("Faupcoming_assessmentiled to fetch data: " + res.statusText);
+      throw new Error("Failed to fetch data: " + res.statusText);
     }
   }
   return res.json();
@@ -27,6 +28,7 @@ const api = {
 };
 
 export default function UpcomingAssessments() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assessments, setAssessments] = useState({ hosted: [], collaborator: [] });
@@ -63,8 +65,14 @@ export default function UpcomingAssessments() {
       return matchesSearch && withinDate;
     });
 
-  const filteredHosted = useMemo(() => filterAssessments(assessments.hosted), [searchQuery, dateRange, assessments]);
-  const filteredCollaborator = useMemo(() => filterAssessments(assessments.collaborator), [searchQuery, dateRange, assessments]);
+  const filteredHosted = useMemo(
+    () => filterAssessments(assessments.hosted),
+    [searchQuery, dateRange, assessments.hosted]
+  );
+  const filteredCollaborator = useMemo(
+    () => filterAssessments(assessments.collaborator),
+    [searchQuery, dateRange, assessments.collaborator]
+  );
 
   if (isLoading) {
     return (
@@ -134,12 +142,16 @@ export default function UpcomingAssessments() {
                   <motion.div
                     key={a._id}
                     whileHover={{ scale: 1.02 }}
-                    onClick={() => (window.location.href = `/assessment/${a._id}`)}
+                    onClick={() => navigate(`/assessments/${a._id}`)}
                     className="cursor-pointer bg-indigo-50 rounded-xl shadow-md p-5 border border-indigo-200 hover:shadow-lg transition"
                   >
                     <h3 className="text-lg font-semibold text-indigo-700">{a.name}</h3>
-                    <p className="text-sm text-indigo-600 mt-1 line-clamp-2">{a.description || "No description"}</p>
-                    <p className="text-xs text-gray-500 mt-2">Created on: {new Date(a.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm text-indigo-600 mt-1 line-clamp-2">
+                      {a.description || "No description"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Created on: {new Date(a.createdAt).toLocaleDateString()}
+                    </p>
                   </motion.div>
                 ))}
               </div>
@@ -159,12 +171,16 @@ export default function UpcomingAssessments() {
                   <motion.div
                     key={a._id}
                     whileHover={{ scale: 1.02 }}
-                    onClick={() => (window.location.href = `/assessment/${a._id}`)}
+                    onClick={() => navigate(`/assessments/${a._id}`)}
                     className="cursor-pointer bg-purple-50 rounded-xl shadow-md p-5 border border-purple-200 hover:shadow-lg transition"
                   >
                     <h3 className="text-lg font-semibold text-purple-700">{a.name}</h3>
-                    <p className="text-sm text-purple-600 mt-1 line-clamp-2">{a.description || "No description"}</p>
-                    <p className="text-xs text-gray-500 mt-2">Created on: {new Date(a.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm text-purple-600 mt-1 line-clamp-2">
+                      {a.description || "No description"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Created on: {new Date(a.createdAt).toLocaleDateString()}
+                    </p>
                   </motion.div>
                 ))}
               </div>

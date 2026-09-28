@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./components/home/Home";
-// import RoomPage from "./components/RoomPage";
 import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
 import Signup from "./Signup";
 import Login from "./Login";
@@ -13,16 +12,13 @@ import Navbar from "./Navbar";
 import ProtectedRoute from "./ProtectedRoute";
 import NotFound from "./NotFound";
 import MyAssessment from "./components/candidate/MyAssessment";
-
-// Import the notification mount function
 import { mountNotifications } from "./notification/Notification";
-import InterviewerAndCandidateProfile from "./components/profilePage/InterviewerAndCandidateProfile"
+import InterviewerAndCandidateProfile from "./components/profilePage/InterviewerAndCandidateProfile";
 import CandidatePracticesQuestion from "./components/home/homecomponents/CandidatePracticesQuestion";
 
 function AppContent() {
   const location = useLocation();
 
-  // Hide Navbar on specific routes
   const hideNavbar =
     ["/", "/login", "/signup"].includes(location.pathname) ||
     location.pathname.startsWith("/videocall/");
@@ -37,23 +33,61 @@ function AppContent() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
 
-        {/* === Common Protected Routes (for all logged-in users) === */}
-        {/* <Route
-          path="/room/:roomId"
-          element={
-            <ProtectedRoute>
-              <RoomPage />
-            </ProtectedRoute>
-          }
-        /> */}
+        {/* === Interviewer Dashboard / Assessment List === */}
         <Route
-          path="/assessment"
+          path="/assessments"
           element={
-            <ProtectedRoute>
-              <CodingAndWhiteboard />
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <UpcomingAssessments />
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/assessment/upcoming_assessment"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <UpcomingAssessments />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* === Interviewer: Create Assessment === */}
+        <Route
+          path="/assessments/create"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <AssessmentBuilder />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create_assessment"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <AssessmentBuilder />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* === Interviewer: Manage Assessment Details === */}
+        <Route
+          path="/assessments/:id"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <AssessmentBuilder />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/assessment/:id"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <AssessmentBuilder />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* === Shared Video Call & Coding Environment === */}
         <Route
           path="/videocall/:assessmentId/:roomId"
           element={
@@ -71,39 +105,7 @@ function AppContent() {
           }
         />
 
-        {/* === Interviewer-Only Routes === */}
-        <Route
-          path="/create_assessment"
-          element={
-            <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/assessment/:id"
-          element={
-            <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/assessment/upcoming_assessment"
-          element={
-            <ProtectedRoute allowedRoles={["interviewer"]}>
-              <UpcomingAssessments />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <InterviewerAndCandidateProfile />
-            </ProtectedRoute>
-          }
-        />
+        {/* === Candidate-Specific Routes === */}
         <Route
           path="/candidate/my_assessment"
           element={
@@ -112,7 +114,6 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/candidatePracticesQuestion/:questionId"
           element={
@@ -122,15 +123,23 @@ function AppContent() {
           }
         />
 
-        {/* Fallback route */}
+        {/* === Common Profile === */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <InterviewerAndCandidateProfile />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
 }
 
-function App() {
-  // Mount global notifications once
+export default function App() {
   useEffect(() => {
     mountNotifications();
   }, []);
@@ -143,5 +152,3 @@ function App() {
     </AuthProvider>
   );
 }
-
-export default App;

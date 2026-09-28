@@ -38,29 +38,37 @@ const io = new Server(server, {
   },
 });
 
-app.use(cors(
-  {
-    origin: "http://localhost:5173",
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://jobsphere-o76y.onrender.com",
+  // Your upcoming Vercel domains:
+  /https:\/\/.*\.vercel\.app$/, // Allows any vercel preview deployment
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (!origin) return callback(null, true);
+      const isAllowed = allowedOrigins.some((allowed) =>
+        allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+      );
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-  }
-));
+  })
+);
+
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-// app.use("/api/auth", authRoutes);
-// app.get("/", (req,res) => {
-//   res.send("hello")
-// });
-
-
-// to check path api/profile/...
-// app.use((req,res,next) => {
-//   console.log(req.url)
-//   next()
-// })
 
 app.use('/api/problem', problemRoutes);
 
@@ -86,6 +94,3 @@ mongoose.connect(process.env.MONGO_URI)
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
-
