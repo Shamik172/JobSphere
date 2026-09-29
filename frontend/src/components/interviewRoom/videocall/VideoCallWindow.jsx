@@ -340,6 +340,7 @@ export default function VideoCallWindow({ roomId, userId, isMiniVideoCallWindow 
     }
   }, []);
 
+
   // Handle socket events in one main effect
   useEffect(() => {
     // Make sure we have fresh state
@@ -672,24 +673,52 @@ export default function VideoCallWindow({ roomId, userId, isMiniVideoCallWindow 
     };
   }, [roomId, userId, isHost, createPeerConnection, cleanupPeerConnection, processIceCandidates]);
 
+
   // Handle leaving the call
   const leaveCall = useCallback(() => {
     console.log("Leaving call...");
 
-    // Stop local tracks
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+    // 1. If host, emit terminate signal to kick everyone else
+    if (isHost && roomId) {
+      console.log("Host terminating session for room:", roomId);
+      socket.emit("terminate-session", { roomId });
     }
 
-    // Clean up all peer connections
+    // 2. Stop local tracks
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+
+    // 3. Clean up all peer connections
     Object.keys(peersRef.current).forEach(cleanupPeerConnection);
 
-    // Disconnect socket
-    socket.disconnect();
+    // 4. Disconnect socket with a tiny delay so the packet is sent
+    setTimeout(() => {
+      socket.disconnect();
+    }, 150);
 
-    // Navigate away
+    // 5. Navigate away
     navigate("/");
-  }, [navigate, cleanupPeerConnection]);
+  }, [navigate, cleanupPeerConnection, isHost, roomId]);
+
+
+  useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const handleAssessmentTerminated = ({ message }) => {
+      console.log("Assessment terminated event received:", message);
+      alert(message || "This interview has been concluded by the host.");
+      leaveCall();
+    };
+
+    socket.on("assessment-terminated", handleAssessmentTerminated);
+
+    return () => {
+      socket.off("assessment-terminated", handleAssessmentTerminated);
+    };
+  }, [leaveCall]);
 
   // Calculate participant information for UI
   const totalParticipants = Object.keys(peers).length + 1;

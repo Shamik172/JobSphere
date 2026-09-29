@@ -2,12 +2,16 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import { Lock, Mail } from "lucide-react";
-import { notify } from "./notification/Notification.jsx"; // ✅ import notify
+import { notify } from "./notification/Notification.jsx";
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+
+  // Read URL redirect parameter (e.g., /login?redirect=/videocall/123/456)
+  const queryParams = new URLSearchParams(location.search);
+  const redirectUrl = queryParams.get("redirect") || location.state?.from?.pathname || null;
 
   const initialUserType = location.state?.userType || "interviewer";
   const [userType, setUserType] = useState(initialUserType);
@@ -18,23 +22,17 @@ const Login = () => {
 
   useEffect(() => {
     if (message) {
-      // ✅ show notification instead of <p> message
       notify(message, message.includes("failed") || message.includes("error") ? "error" : "success");
       const timer = setTimeout(() => setMessage(""), 3000);
       return () => clearTimeout(timer);
     }
   }, [message]);
 
-  const from =
-    (userType === "interviewer" ? "/" : "/");
-
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleUserTypeToggle = () => {
-    setUserType((prev) =>
-      prev === "interviewer" ? "candidate" : "interviewer"
-    );
+    setUserType((prev) => (prev === "interviewer" ? "candidate" : "interviewer"));
     setMessage("");
   };
 
@@ -55,13 +53,22 @@ const Login = () => {
       const data = await res.json();
       if (res.ok) {
         await login();
-        notify("Login Successful!", "success"); // ✅ notify on success
-        navigate(from, { replace: true });
+        notify("Login Successful!", "success");
+
+        // 🌟 If there was a redirect destination, route straight to it
+        if (redirectUrl) {
+          navigate(redirectUrl, { replace: true });
+        } else {
+          // Default role landing
+          navigate(userType === "interviewer" ? "/assessments" : "/candidate/my_assessment", {
+            replace: true,
+          });
+        }
       } else {
-        setMessage(data.message || "Login failed"); // ✅ notify via useEffect
+        setMessage(data.message || "Login failed");
       }
     } catch (err) {
-      setMessage("Server error — please try again."); // ✅ notify via useEffect
+      setMessage("Server error — please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,7 +93,6 @@ const Login = () => {
       <div
         className={`w-full max-w-md p-8 rounded-2xl shadow-2xl border ${theme.card} backdrop-blur-2xl`}
       >
-        {/* Title */}
         <h1 className="text-4xl font-extrabold text-center text-gray-900 mb-2 tracking-tight">
           JobSphere
         </h1>
@@ -94,7 +100,6 @@ const Login = () => {
           {isInterviewer ? "Interviewer Portal" : "Candidate Portal"}
         </p>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="relative">
             <Mail
@@ -139,7 +144,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Toggle */}
         <div className="mt-6 text-center">
           <button
             onClick={handleUserTypeToggle}
@@ -149,13 +153,10 @@ const Login = () => {
                 : "text-orange-700 hover:text-orange-900"
             } hover:underline`}
           >
-            {isInterviewer
-              ? "Login as a Candidate"
-              : "Login as an Interviewer"}
+            {isInterviewer ? "Login as a Candidate" : "Login as an Interviewer"}
           </button>
         </div>
 
-        {/* Signup */}
         <div className="mt-6 pt-4 border-t border-gray-200 text-center text-sm text-gray-700">
           Don’t have an account?{" "}
           <button

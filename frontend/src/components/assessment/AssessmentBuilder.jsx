@@ -19,6 +19,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
 import { notify } from "../../notification/Notification";
+import socket from "../../utils/socket";
 
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
@@ -128,7 +129,42 @@ export default function AssessmentBuilder() {
     setAssessmentId(id || null);
   }, [id]);
 
-const fetchAssessmentData = useCallback(async () => {
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    // Join the room channel so this hub receives live updates
+    socket.emit("join-room", { roomId, userId: null });
+
+    const handlePresenceChanged = ({ userId, presence }) => {
+      setInterviewers((prev) =>
+        prev.map((inv) =>
+          inv.userId?.toString() === userId?.toString()
+            ? { ...inv, presence }
+            : inv
+        )
+      );
+      setCandidates((prev) =>
+        prev.map((cand) =>
+          cand.userId?.toString() === userId?.toString()
+            ? { ...cand, presence }
+            : cand
+        )
+      );
+    };
+
+    socket.on("participant-presence-changed", handlePresenceChanged);
+
+    return () => {
+      socket.off("participant-presence-changed", handlePresenceChanged);
+    };
+  }, [roomId]);
+
+  const fetchAssessmentData = useCallback(async () => {
     if (!assessmentId) return;
     setIsLoading(true);
     setError(null);
@@ -249,6 +285,27 @@ const fetchAssessmentData = useCallback(async () => {
     }
   };
 
+  // Add this handler inside AssessmentBuilder component
+  const handleEndAssessment = async () => {
+    if (!window.confirm("Are you sure you want to end this assessment? This will mark the assessment as completed for all participants.")) {
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/assessments/${assessmentId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Completed" }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update assessment status");
+
+      notify("Assessment marked as Completed", "success");
+      fetchAssessmentData();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#070b14] flex flex-col justify-center items-center text-slate-300">
@@ -308,16 +365,23 @@ const fetchAssessmentData = useCallback(async () => {
                       className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
                     >
                       <div className="min-w-0 pr-2">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{inv.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-slate-100 truncate">{inv.name}</p>
+                          {inv.presence === "In Call" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                              Live
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-400 truncate">{inv.email}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
-                            inv.status === "Accepted"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                          }`}
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${inv.status === "Accepted"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                            }`}
                         >
                           {inv.status}
                         </span>
@@ -369,16 +433,23 @@ const fetchAssessmentData = useCallback(async () => {
                       className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
                     >
                       <div className="min-w-0 pr-2">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{cand.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-slate-100 truncate">{cand.name}</p>
+                          {cand.presence === "In Call" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                              Live
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-400 truncate">{cand.email}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
-                            cand.status === "Accepted"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                          }`}
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${cand.status === "Accepted"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                            }`}
                         >
                           {cand.status}
                         </span>
@@ -612,13 +683,12 @@ const fetchAssessmentData = useCallback(async () => {
                         <div className="min-w-0 pr-3">
                           <p className="text-sm font-semibold text-slate-200 truncate">{q.title}</p>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                              q.difficulty === "Easy"
-                                ? "bg-emerald-500/10 text-emerald-400"
-                                : q.difficulty === "Medium"
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${q.difficulty === "Easy"
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : q.difficulty === "Medium"
                                 ? "bg-amber-500/10 text-amber-400"
                                 : "bg-rose-500/10 text-rose-400"
-                            }`}
+                              }`}
                           >
                             {q.difficulty || "Standard"}
                           </span>

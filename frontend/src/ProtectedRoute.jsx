@@ -13,7 +13,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (!isLoggedIn) {
     notify("You must be logged in to access this page.","warning");
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
