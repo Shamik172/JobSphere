@@ -70,6 +70,7 @@ app.use("/api/assessments",assessmentRoutes);
 app.use("/api/code",codeRoutes);
 app.use("/api/interviewer",interviewerRoutes);
 app.use("/api/candidate", candidateRoutes);
+app.use("/api/users", require("./routes/userRoutes"));
 
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));

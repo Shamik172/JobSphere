@@ -1,21 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  UserPlus,
-  Users,
-  Send,
-  FilePlus2,
-  Link2,
-  Eye,
-  Loader2,
-  Video,
-  Trash2,
-  RotateCw,
-  Calendar,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-} from "lucide-react";
+import { UserPlus, Users, Send, FilePlus2, Link2, Eye, Loader2, Video, Trash2, RotateCw, Calendar, Clock, Sparkles, CheckCircle2, UserCheck, ShieldAlert, } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import QuestionPreviewPopup from "./QuestionPreviewPopup";
 import { notify } from "../../notification/Notification";
@@ -111,6 +96,85 @@ export default function AssessmentBuilder() {
   const [previewQuestion, setPreviewQuestion] = useState(null);
 
   const isCreateMode = !assessmentId;
+
+  // Status states: "idle" | "checking" | "exists" | "not_found"
+  const [interviewerStatus, setInterviewerStatus] = useState("idle");
+  const [candidateStatus, setCandidateStatus] = useState("idle");
+
+  // Track last checked emails to eliminate duplicate requests
+  const lastCheckedInterviewerEmail = useRef("");
+  const lastCheckedCandidateEmail = useRef("");
+
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email?.trim());
+
+  // Email verification check with caching
+  const handleCheckEmail = async (role, emailToCheck) => {
+    const isInterviewer = role === "interviewer";
+    const email = (emailToCheck !== undefined
+      ? emailToCheck
+      : (isInterviewer ? inviteData.interviewerEmail : inviteData.candidateEmail))?.trim();
+
+    if (!isValidEmail(email)) return;
+
+    const lastChecked = isInterviewer ? lastCheckedInterviewerEmail : lastCheckedCandidateEmail;
+
+    // Skip network round-trip if this identical email was already validated
+    if (lastChecked.current === email) return;
+
+    const setStatus = isInterviewer ? setInterviewerStatus : setCandidateStatus;
+    setStatus("checking");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/lookup?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      lastChecked.current = email;
+
+      if (data.exists && data.user) {
+        setStatus("exists");
+        if (isInterviewer) {
+          setInviteData((prev) => ({ ...prev, interviewerName: data.user.name }));
+        } else {
+          setInviteData((prev) => ({ ...prev, candidateName: data.user.name }));
+        }
+      } else {
+        setStatus("not_found");
+      }
+    } catch (err) {
+      console.error("Lookup error:", err);
+      setStatus("not_found");
+    }
+  };
+
+  // Handle email changes
+  const handleEmailChange = (role, email) => {
+    const isInterviewer = role === "interviewer";
+    const setStatus = isInterviewer ? setInterviewerStatus : setCandidateStatus;
+    const lastChecked = isInterviewer ? lastCheckedInterviewerEmail : lastCheckedCandidateEmail;
+
+    if (isInterviewer) {
+      setInviteData((prev) => ({
+        ...prev,
+        interviewerEmail: email,
+        interviewerName: interviewerStatus === "exists" ? "" : (suggestName(email) || prev.interviewerName),
+      }));
+    } else {
+      setInviteData((prev) => ({
+        ...prev,
+        candidateEmail: email,
+        candidateName: candidateStatus === "exists" ? "" : (suggestName(email) || prev.candidateName),
+      }));
+    }
+
+    // Invalidate cache if string was altered
+    if (lastChecked.current !== email.trim()) {
+      setStatus("idle");
+    }
+
+    if (isValidEmail(email)) {
+      handleCheckEmail(role, email);
+    }
+  };
 
   // Clean name suggester: e.g. "alex.smith_99@gmail.com" -> "Alex Smith"
   const suggestName = (email) => {
@@ -220,6 +284,7 @@ export default function AssessmentBuilder() {
     }
   };
 
+  // Handle invite submission and clean form state
   const handleInvite = async (role) => {
     const isInterviewer = role === "interviewer";
     const email = isInterviewer ? inviteData.interviewerEmail : inviteData.candidateEmail;
@@ -230,11 +295,18 @@ export default function AssessmentBuilder() {
     try {
       await api.inviteParticipant(assessmentId, { email, role, name });
       notify(`Invitation delivered to ${email}`, "success");
+
+      // Reset form values & clear verification cache
       if (isInterviewer) {
         setInviteData((prev) => ({ ...prev, interviewerEmail: "", interviewerName: "" }));
+        setInterviewerStatus("idle");
+        lastCheckedInterviewerEmail.current = "";
       } else {
         setInviteData((prev) => ({ ...prev, candidateEmail: "", candidateName: "" }));
+        setCandidateStatus("idle");
+        lastCheckedCandidateEmail.current = "";
       }
+
       fetchAssessmentData();
     } catch (err) {
       notify(err.message, "error");
@@ -359,54 +431,84 @@ export default function AssessmentBuilder() {
 
               <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
                 {interviewers.length > 0 ? (
-                  interviewers.map((inv) => (
-                    <div
-                      key={inv.participantId || inv.userId}
-                      className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-slate-100 truncate">{inv.name}</p>
-                          {inv.presence === "In Call" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                              Live
-                            </span>
+                  interviewers.map((inv) => {
+                    const profilePic = inv.profilePic || inv.user?.profilePic;
+                    const displayName = inv.name || inv.user?.name || "Interviewer";
+                    const displayEmail = inv.email || inv.user?.email || "";
+
+                    return (
+                      <div
+                        key={inv.participantId || inv.userId || inv._id}
+                        className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {/* Profile Pic / Initial Fallback */}
+                          <div className="relative shrink-0">
+                            {profilePic ? (
+                              <img
+                                src={profilePic}
+                                alt={displayName}
+                                className="w-8 h-8 rounded-full object-cover border border-indigo-500/30 bg-slate-800"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-indigo-950/70 border border-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300">
+                                {displayName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {inv.presence === "In Call" && (
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-900" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-slate-100 truncate">{displayName}</p>
+                              {inv.presence === "In Call" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                  Live
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 truncate">{displayEmail}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${inv.status === "Accepted"
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                              }`}
+                          >
+                            {inv.status}
+                          </span>
+                          {!isCreateMode && inv.status !== "Accepted" && (
+                            <button
+                              title="Resend Invitation"
+                              disabled={actionLoadingId === inv.participantId}
+                              onClick={() => handleResend(inv.participantId)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50 transition"
+                            >
+                              <RotateCw
+                                size={14}
+                                className={actionLoadingId === inv.participantId ? "animate-spin" : ""}
+                              />
+                            </button>
+                          )}
+                          {!isCreateMode && (
+                            <button
+                              title="Remove Interviewer"
+                              onClick={() => handleRemove(inv.participantId)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 transition"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 truncate">{inv.email}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${inv.status === "Accepted"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                            }`}
-                        >
-                          {inv.status}
-                        </span>
-                        {!isCreateMode && inv.status !== "Accepted" && (
-                          <button
-                            title="Resend Invitation"
-                            disabled={actionLoadingId === inv.participantId}
-                            onClick={() => handleResend(inv.participantId)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50 transition"
-                          >
-                            <RotateCw size={14} className={actionLoadingId === inv.participantId ? "animate-spin" : ""} />
-                          </button>
-                        )}
-                        {!isCreateMode && (
-                          <button
-                            title="Remove Interviewer"
-                            onClick={() => handleRemove(inv.participantId)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 transition"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-xs text-slate-500 py-3 text-center italic">No co-interviewers added yet.</p>
                 )}
@@ -427,54 +529,84 @@ export default function AssessmentBuilder() {
 
               <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
                 {candidates.length > 0 ? (
-                  candidates.map((cand) => (
-                    <div
-                      key={cand.participantId || cand.userId}
-                      className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-slate-100 truncate">{cand.name}</p>
-                          {cand.presence === "In Call" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                              Live
-                            </span>
+                  candidates.map((cand) => {
+                    const profilePic = cand.profilePic || cand.user?.profilePic;
+                    const displayName = cand.name || cand.user?.name || "Candidate";
+                    const displayEmail = cand.email || cand.user?.email || "";
+
+                    return (
+                      <div
+                        key={cand.participantId || cand.userId || cand._id}
+                        className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/40 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {/* Profile Pic / Initial Fallback */}
+                          <div className="relative shrink-0">
+                            {profilePic ? (
+                              <img
+                                src={profilePic}
+                                alt={displayName}
+                                className="w-8 h-8 rounded-full object-cover border border-purple-500/30 bg-slate-800"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-purple-950/70 border border-purple-500/30 flex items-center justify-center text-xs font-bold text-purple-300">
+                                {displayName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {cand.presence === "In Call" && (
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-900" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-slate-100 truncate">{displayName}</p>
+                              {cand.presence === "In Call" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                  Live
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 truncate">{displayEmail}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${cand.status === "Accepted"
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                              }`}
+                          >
+                            {cand.status}
+                          </span>
+                          {!isCreateMode && (
+                            <>
+                              <button
+                                title="Resend Invitation"
+                                disabled={actionLoadingId === cand.participantId}
+                                onClick={() => handleResend(cand.participantId)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-slate-700/50 transition"
+                              >
+                                <RotateCw
+                                  size={14}
+                                  className={actionLoadingId === cand.participantId ? "animate-spin" : ""}
+                                />
+                              </button>
+                              <button
+                                title="Remove Candidate"
+                                onClick={() => handleRemove(cand.participantId)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 transition"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 truncate">{cand.email}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${cand.status === "Accepted"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                            }`}
-                        >
-                          {cand.status}
-                        </span>
-                        {!isCreateMode && (
-                          <>
-                            <button
-                              title="Resend Invitation"
-                              disabled={actionLoadingId === cand.participantId}
-                              onClick={() => handleResend(cand.participantId)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-slate-700/50 transition"
-                            >
-                              <RotateCw size={14} className={actionLoadingId === cand.participantId ? "animate-spin" : ""} />
-                            </button>
-                            <button
-                              title="Remove Candidate"
-                              onClick={() => handleRemove(cand.participantId)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 transition"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-xs text-slate-500 py-3 text-center italic">No candidates enrolled yet.</p>
                 )}
@@ -571,76 +703,192 @@ export default function AssessmentBuilder() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Invite Co-Interviewer */}
-                  <div className="space-y-3 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider block">
-                      Add Co-Interviewer
-                    </span>
+                  <div className={`space-y-3 p-4 rounded-xl border transition-all duration-300 ${interviewerStatus === "checking"
+                      ? "bg-indigo-950/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+                      : interviewerStatus === "exists"
+                        ? "bg-emerald-950/20 border-emerald-500/30"
+                        : "bg-slate-950/40 border-slate-800/80"
+                    }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider block">
+                        Add Co-Interviewer
+                      </span>
 
-                    <input
-                      type="email"
-                      placeholder="interviewer@company.com"
-                      value={inviteData.interviewerEmail}
-                      onChange={(e) => {
-                        const email = e.target.value;
-                        setInviteData((prev) => ({
-                          ...prev,
-                          interviewerEmail: email,
-                          interviewerName: prev.interviewerName || suggestName(email),
-                        }));
-                      }}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
+                      {/* Prominent Status Pill */}
+                      {interviewerStatus === "checking" && (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
+                          <Loader2 size={12} className="animate-spin text-amber-400" />
+                          Checking database...
+                        </span>
+                      )}
+                      {interviewerStatus === "exists" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          <UserCheck size={12} /> Registered Member
+                        </span>
+                      )}
+                      {interviewerStatus === "not_found" && (
+                        <span className="text-[11px] font-medium text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full">
+                          New User (Editable)
+                        </span>
+                      )}
+                    </div>
 
-                    <input
-                      type="text"
-                      placeholder="Interviewer Name"
-                      value={inviteData.interviewerName}
-                      onChange={(e) => setInviteData({ ...inviteData, interviewerName: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
+                    {/* Email Input */}
+                    <div className="relative">
+                      <input
+                        type="email"
+                        placeholder="interviewer@company.com"
+                        value={inviteData.interviewerEmail}
+                        onChange={(e) => handleEmailChange("interviewer", e.target.value)}
+                        onBlur={() => handleCheckEmail("interviewer")}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3 pr-9 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      {interviewerStatus === "checking" && (
+                        <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-indigo-400" />
+                      )}
+                      {interviewerStatus === "exists" && (
+                        <UserCheck size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" />
+                      )}
+                    </div>
+
+                    {/* Name Input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder={interviewerStatus === "checking" ? "Checking account records..." : "Interviewer Name"}
+                        disabled={interviewerStatus === "checking" || interviewerStatus === "exists"}
+                        value={inviteData.interviewerName}
+                        onChange={(e) => setInviteData({ ...inviteData, interviewerName: e.target.value })}
+                        className={`w-full border rounded-lg px-3 py-2 text-sm transition duration-200 ${interviewerStatus === "checking"
+                            ? "bg-slate-950/80 border-amber-500/30 text-amber-200 placeholder-amber-400/60 cursor-wait animate-pulse"
+                            : interviewerStatus === "exists"
+                              ? "bg-slate-950/80 border-emerald-500/30 text-emerald-200 opacity-90 cursor-not-allowed"
+                              : "bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500"
+                          }`}
+                      />
+
+                      {interviewerStatus === "checking" && (
+                        <p className="text-[10px] text-amber-300/80 mt-1 flex items-center gap-1 font-medium">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                          Verifying user in database. Please wait a moment...
+                        </p>
+                      )}
+                      {interviewerStatus === "exists" && (
+                        <p className="text-[10px] text-emerald-400/80 mt-1 font-medium">
+                          ✓ Auto-populated from existing JobSphere profile (read-only)
+                        </p>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => handleInvite("interviewer")}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow"
+                      disabled={interviewerStatus === "checking"}
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow disabled:opacity-50"
                     >
-                      <Send size={13} /> Send Interviewer Invite
+                      {interviewerStatus === "checking" ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" /> Verifying Email...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={13} /> Send Interviewer Invite
+                        </>
+                      )}
                     </button>
                   </div>
 
                   {/* Invite Candidate */}
-                  <div className="space-y-3 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                    <span className="text-xs font-bold text-purple-400 uppercase tracking-wider block">
-                      Add Candidate
-                    </span>
+                  <div className={`space-y-3 p-4 rounded-xl border transition-all duration-300 ${candidateStatus === "checking"
+                      ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                      : candidateStatus === "exists"
+                        ? "bg-emerald-950/20 border-emerald-500/30"
+                        : "bg-slate-950/40 border-slate-800/80"
+                    }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-400 uppercase tracking-wider block">
+                        Add Candidate
+                      </span>
 
-                    <input
-                      type="email"
-                      placeholder="candidate@gmail.com"
-                      value={inviteData.candidateEmail}
-                      onChange={(e) => {
-                        const email = e.target.value;
-                        setInviteData((prev) => ({
-                          ...prev,
-                          candidateEmail: email,
-                          candidateName: prev.candidateName || suggestName(email),
-                        }));
-                      }}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
+                      {/* Prominent Status Pill */}
+                      {candidateStatus === "checking" && (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
+                          <Loader2 size={12} className="animate-spin text-amber-400" />
+                          Checking database...
+                        </span>
+                      )}
+                      {candidateStatus === "exists" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          <UserCheck size={12} /> Registered Member
+                        </span>
+                      )}
+                      {candidateStatus === "not_found" && (
+                        <span className="text-[11px] font-medium text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full">
+                          New User (Editable)
+                        </span>
+                      )}
+                    </div>
 
-                    <input
-                      type="text"
-                      placeholder="Candidate Full Name"
-                      value={inviteData.candidateName}
-                      onChange={(e) => setInviteData({ ...inviteData, candidateName: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
+                    {/* Email Input */}
+                    <div className="relative">
+                      <input
+                        type="email"
+                        placeholder="candidate@gmail.com"
+                        value={inviteData.candidateEmail}
+                        onChange={(e) => handleEmailChange("candidate", e.target.value)}
+                        onBlur={() => handleCheckEmail("candidate")}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3 pr-9 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                      {candidateStatus === "checking" && (
+                        <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-purple-400" />
+                      )}
+                      {candidateStatus === "exists" && (
+                        <UserCheck size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" />
+                      )}
+                    </div>
+
+                    {/* Name Input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder={candidateStatus === "checking" ? "Checking account records..." : "Candidate Full Name"}
+                        disabled={candidateStatus === "checking" || candidateStatus === "exists"}
+                        value={inviteData.candidateName}
+                        onChange={(e) => setInviteData({ ...inviteData, candidateName: e.target.value })}
+                        className={`w-full border rounded-lg px-3 py-2 text-sm transition duration-200 ${candidateStatus === "checking"
+                            ? "bg-slate-950/80 border-amber-500/30 text-amber-200 placeholder-amber-400/60 cursor-wait animate-pulse"
+                            : candidateStatus === "exists"
+                              ? "bg-slate-950/80 border-emerald-500/30 text-emerald-200 opacity-90 cursor-not-allowed"
+                              : "bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-600 focus:ring-1 focus:ring-purple-500"
+                          }`}
+                      />
+
+                      {candidateStatus === "checking" && (
+                        <p className="text-[10px] text-amber-300/80 mt-1 flex items-center gap-1 font-medium">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                          Verifying user in database. Please wait a moment...
+                        </p>
+                      )}
+                      {candidateStatus === "exists" && (
+                        <p className="text-[10px] text-emerald-400/80 mt-1 font-medium">
+                          ✓ Auto-populated from existing JobSphere profile (read-only)
+                        </p>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => handleInvite("candidate")}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow"
+                      disabled={candidateStatus === "checking"}
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition shadow disabled:opacity-50"
                     >
-                      <Send size={13} /> Send Candidate Invite
+                      {candidateStatus === "checking" ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" /> Verifying Email...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={13} /> Send Candidate Invite
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

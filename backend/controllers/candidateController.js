@@ -141,28 +141,37 @@ exports.verifyAuth = async (req, res) => {
 exports.getMyAssessments = async (req, res) => {
   try {
     const candidateId = req.user._id;
-    console.log(candidateId);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    const assessments = await AssessmentParticipant.find({
-      user: candidateId,
-      role: "candidate",
-    })
+    // Fetch all participation records for this candidate
+    const participations = await AssessmentParticipant.find({ user: candidateId })
       .populate({
         path: "assessment",
-        match: { date: { $gte: today } }, // Only future/upcoming
+        populate: {
+          path: "created_by",
+          select: "name email profilePic company",
+        },
       })
-      .sort({ "assessment.date": 1 });
+      .sort({ createdAt: -1 });
 
-    const upcoming = assessments
-      .filter((ap) => ap.assessment)
-      .map((ap) => ap.assessment);
+    // Format response payload
+    const assessments = participations
+      .filter((p) => p.assessment !== null)
+      .map((p) => ({
+        participantId: p._id,
+        status: p.status, // "Invited" | "Accepted" | "Completed"
+        assessmentId: p.assessment._id,
+        name: p.assessment.name,
+        description: p.assessment.description,
+        scheduledAt: p.assessment.scheduledAt,
+        duration: p.assessment.duration,
+        roomId: p.assessment.room_id,
+        host: p.assessment.created_by,
+      }));
 
-    res.status(200).json({ assessments: upcoming });
-  } catch (error) {
-    console.error("Get My Assessments Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return res.status(200).json({ success: true, assessments });
+  } catch (err) {
+    console.error("Error fetching candidate assessments:", err);
+    return res.status(500).json({ message: "Server error retrieving assessments." });
   }
 };
 

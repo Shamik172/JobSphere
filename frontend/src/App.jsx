@@ -4,6 +4,7 @@ import Home from "./components/home/Home";
 import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
 import Signup from "./Signup";
 import Login from "./Login";
+import SetupAccount from "./SetupAccount";
 import { AuthProvider } from "./context/AuthContext";
 import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage";
 import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
@@ -32,6 +33,7 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/setup-account" element={<SetupAccount />} />
 
         {/* === Interviewer Dashboard / Assessment List === */}
         <Route

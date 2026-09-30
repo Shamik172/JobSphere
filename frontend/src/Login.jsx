@@ -55,14 +55,15 @@ const Login = () => {
         await login();
         notify("Login Successful!", "success");
 
-        // 🌟 If there was a redirect destination, route straight to it
-        if (redirectUrl) {
-          navigate(redirectUrl, { replace: true });
+        const params = new URLSearchParams(window.location.search);
+        const rawRedirect = params.get("redirect");
+        const targetDestination = rawRedirect ? decodeURIComponent(rawRedirect) : null;
+
+        if (targetDestination) {
+          navigate(targetDestination, { replace: true });
         } else {
-          // Default role landing
-          navigate(userType === "interviewer" ? "/assessments" : "/candidate/my_assessment", {
-            replace: true,
-          });
+          // Standard login without a specific redirect lands on root
+          navigate("/", { replace: true });
         }
       } else {
         setMessage(data.message || "Login failed");

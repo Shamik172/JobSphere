@@ -1,91 +1,10 @@
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const Assessment = require("../models/Assessment");
-const Question = require("../models/Question");
 const AssessmentParticipant = require("../models/AssessmentParticipant");
 const { Interviewer, Candidate } = require("../models/User");
 const sendEmail = require("../utils/mailSender");
-
-// 🔹 Reusable Styled HTML Email Template for Brevo
-const buildEmailTemplate = ({
-  role,
-  assessmentName,
-  hostName,
-  scheduledText,
-  primaryUrl,
-  secondaryUrl,
-  credentials,
-}) => {
-  const isInterviewer = role === "interviewer";
-  const brandColor = isInterviewer ? "#6366f1" : "#a855f7";
-  const roleTitle = isInterviewer ? "Co-Interviewer & Evaluator" : "Candidate Assessment";
-
-  const credentialsBlock = credentials
-    ? `
-      <div style="background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px 20px; margin: 24px 0;">
-        <p style="margin: 0; font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Auto-Generated Access Account</p>
-        <p style="margin: 8px 0 0 0; font-size: 14px; color: #e2e8f0;">Temporary Password: <strong style="color: #38bdf8; font-family: monospace; font-size: 16px; background: #1e293b; padding: 2px 8px; border-radius: 6px;">${credentials.password}</strong></p>
-        <p style="margin: 6px 0 0 0; font-size: 12px; color: #64748b;">You can log in to view your dashboard using your email and this temporary key.</p>
-      </div>
-    `
-    : "";
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="utf-8"></head>
-    <body style="margin:0; padding:30px 10px; background-color:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#e2e8f0;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; background:#131b2e; border:1px solid #1e293b; border-radius:18px; overflow:hidden; box-shadow:0 12px 35px rgba(0,0,0,0.5);">
-        <tr>
-          <td style="background:linear-gradient(135deg, ${brandColor} 0%, #3b82f6 100%); padding:28px 32px;">
-            <span style="font-size:20px; font-weight:800; letter-spacing:-0.03em; color:#ffffff;">JobSphere</span>
-            <div style="margin-top:6px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.85); text-transform:uppercase; letter-spacing:0.08em;">${roleTitle}</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <h1 style="margin:0 0 12px 0; font-size:22px; font-weight:700; color:#ffffff;">Invitation: ${assessmentName}</h1>
-            <p style="margin:0 0 20px 0; font-size:15px; line-height:1.6; color:#94a3b8;">
-              ${hostName ? `<strong>${hostName}</strong> has invited you` : "You have been invited"} to participate in the upcoming technical assessment on JobSphere.
-            </p>
-
-            ${scheduledText ? `
-              <div style="display:inline-block; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px 16px; margin-bottom:20px;">
-                <span style="color:#38bdf8; font-size:13px; font-weight:600;">🕒 Scheduled: </span>
-                <span style="color:#f1f5f9; font-size:13px;">${scheduledText}</span>
-              </div>
-            ` : ""}
-
-            ${credentialsBlock}
-
-            <table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0 16px 0;">
-              <tr>
-                <td align="center" style="border-radius:10px; background:${brandColor};">
-                  <a href="${primaryUrl}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px;">
-                    ${isInterviewer ? "Open Assessment Hub" : "Enter Interview Room"}
-                  </a>
-                </td>
-              </tr>
-            </table>
-
-            ${secondaryUrl ? `
-              <p style="margin:16px 0 0 0; font-size:13px; color:#64748b;">
-                Direct Live Video Call Link: <br/>
-                <a href="${secondaryUrl}" style="color:#38bdf8; text-decoration:underline; word-break:break-all;">${secondaryUrl}</a>
-              </p>
-            ` : ""}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 32px; background:#0f172a; border-top:1px solid #1e293b; font-size:12px; color:#64748b; text-align:center;">
-            JobSphere Collaboration Platform • Automated notification
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-};
+const { getNewUserInviteTemplate, getExistingUserInviteTemplate, } = require("../services/emailTemplates");
 
 // --- 1. Create Assessment ---
 exports.createAssessment = async (req, res) => {
@@ -239,22 +158,20 @@ exports.inviteParticipant = async (req, res) => {
 
     const UserModel = role === "interviewer" ? Interviewer : Candidate;
 
-    // Check if user already exists in DB
     let user = await UserModel.findOne({ email: cleanEmail });
     let isNewUser = false;
     let temporaryPassword = null;
 
     if (!user) {
       isNewUser = true;
-      // Generate clean 8-character temporary password
       temporaryPassword = crypto.randomBytes(4).toString("hex");
 
-      // Pass raw temporaryPassword — Mongoose UserSchema.pre('save') will hash it ONCE!
       user = await UserModel.create({
         name: customName,
         email: cleanEmail,
         password: temporaryPassword,
         role,
+        isActivated: false,
       });
     }
 
@@ -275,26 +192,42 @@ exports.inviteParticipant = async (req, res) => {
     });
     await newParticipant.save();
 
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const FRONTEND_URL = req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
+
+    // 1. Full absolute URLs for email buttons
     const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment._id}/${assessment.room_id}`;
-    const workspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
+    const absoluteWorkspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
+    const absoluteCandidateDashboardUrl = `${FRONTEND_URL}/candidate/my_assessment`;
 
-    const scheduledText = assessment.scheduledAt
-      ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
-      : null;
+    // 2. Relative destinations for the setup redirect parameter
+    const destinationAfterSetup = role === "interviewer"
+      ? `/assessments/${assessment._id}`
+      : `/candidate/my_assessment`;
 
-    const emailSubject = `JobSphere Invitation: ${assessment.name}`;
-    const emailHtml = buildEmailTemplate({
-      role,
-      assessmentName: assessment.name,
-      hostName: assessment.created_by?.name || req.user?.name,
-      scheduledText,
-      primaryUrl: role === "interviewer" ? workspaceUrl : liveInterviewUrl,
-      secondaryUrl: role === "interviewer" ? liveInterviewUrl : null,
-      credentials: isNewUser ? { password: temporaryPassword } : null,
-    });
+    const setupUrl = `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent(destinationAfterSetup)}`;
 
-    // Attempt email delivery via Brevo
+    // In template calls:
+    const emailHtml = isNewUser
+      ? getNewUserInviteTemplate({
+        name: customName,
+        role,
+        assessmentName: assessment.name,
+        hostName: assessment.created_by?.name || req.user?.name,
+        scheduledText,
+        tempPassword: temporaryPassword,
+        setupUrl,
+        liveInterviewUrl,
+      })
+      : getExistingUserInviteTemplate({
+        name: user.name,
+        role,
+        assessmentName: assessment.name,
+        hostName: assessment.created_by?.name || req.user?.name,
+        scheduledText,
+        dashboardUrl: role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl, // 👈 Must be absolute!
+        liveInterviewUrl,
+      });
+
     try {
       await sendEmail(cleanEmail, emailSubject, emailHtml);
     } catch (mailError) {
@@ -528,5 +461,60 @@ exports.updateAssessmentStatus = async (req, res) => {
     res.status(200).json({ message: `Assessment updated to ${status}`, assessment });
   } catch (error) {
     res.status(500).json({ message: "Error updating status", error: error.message });
+  }
+};
+
+
+// Candidate explicitly accepts the assessment invitation
+exports.acceptCandidateInvite = async (req, res) => {
+  try {
+    const { id: assessmentId } = req.params;
+    const candidateId = req.user._id;
+
+    const participant = await AssessmentParticipant.findOne({
+      assessment: assessmentId,
+      user: candidateId,
+    });
+
+    if (!participant) {
+      return res.status(404).json({ message: "Invitation not found." });
+    }
+
+    participant.status = "Accepted";
+    await participant.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Invitation accepted!",
+      status: "Accepted",
+    });
+  } catch (err) {
+    console.error("Accept invite error:", err);
+    return res.status(500).json({ message: "Failed to accept invitation." });
+  }
+};
+
+// Candidate declines the invitation (removes them from enrollment)
+exports.declineCandidateInvite = async (req, res) => {
+  try {
+    const { id: assessmentId } = req.params;
+    const candidateId = req.user._id;
+
+    const participant = await AssessmentParticipant.findOneAndDelete({
+      assessment: assessmentId,
+      user: candidateId,
+    });
+
+    if (!participant) {
+      return res.status(404).json({ message: "Invitation not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Invitation declined and removed.",
+    });
+  } catch (err) {
+    console.error("Decline invite error:", err);
+    return res.status(500).json({ message: "Failed to decline invitation." });
   }
 };

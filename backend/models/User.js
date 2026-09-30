@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// 1️⃣ Define the Base Schema
+// Define the Base Schema
 const UserSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -22,10 +22,16 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
 
-  // 🌟 Common field for all users
+  // Common field for all users
   profilePic: {
     type: String,
     default: "", // Cloudinary URL or blank
+  },
+
+  // Account activation tracking
+  isActivated: {
+    type: Boolean,
+    default: true,
   },
 
 }, {
@@ -33,7 +39,7 @@ const UserSchema = new mongoose.Schema({
   discriminatorKey: 'role',
 });
 
-// 2️⃣ Password Hashing Middleware
+// Password Hashing Middleware
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
@@ -45,25 +51,22 @@ UserSchema.pre('save', async function (next) {
   }
 });
 
-// 3️⃣ Password Comparison Method
+// Password Comparison Method
 UserSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// 4️⃣ Create Base Model
+// Create Base Model
 const User = mongoose.model('User', UserSchema);
 
-// 5️⃣ Create Discriminators (Specialized roles)
-
-// 🧑‍💼 INTERVIEWER SCHEMA (Company, Department, Position)
+// Create Discriminators (Specialized roles)
 const Interviewer = User.discriminator('interviewer', new mongoose.Schema({
   company: { type: String, required: false },
   department: { type: String, required: false },
-  position: { type: String, required: false }, // 🌟 Newly added field
+  position: { type: String, required: false },
   companyProof: { type: String },
 }));
 
-// 👨‍💻 CANDIDATE SCHEMA (Resume, Portfolio)
 const Candidate = User.discriminator('candidate', new mongoose.Schema({
   resume_url: { type: String },
   education: { type: String },
@@ -71,5 +74,4 @@ const Candidate = User.discriminator('candidate', new mongoose.Schema({
   experience: { type: String },
 }));
 
-// 6️⃣ Export All Models
 module.exports = { User, Interviewer, Candidate };
