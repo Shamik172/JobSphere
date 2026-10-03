@@ -103,38 +103,77 @@ exports.getMyAssessments = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Assessments created by this user
-    const hosted = await Assessment.find({ created_by: userId })
-      .select("_id name description scheduledAt duration createdAt updatedAt")
-      .sort({ createdAt: -1 });
+    // 1. Fetch assessments created by the user (Host)
+    const hostedAssessments = await Assessment.find({ created_by: userId })
+      .select("name description scheduledAt duration status room_id createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // Assessments where user is invited as co-interviewer (exclude self-hosted)
-    const collaboratorRecords = await AssessmentParticipant.find({
+    // 2. Fetch assessments where the user is an enrolled participant (Collaborator)
+    const coInterviewerParticipations = await AssessmentParticipant.find({
       user: userId,
       role: "interviewer",
-    })
-      .populate({
-        path: "assessment",
-        select: "_id name description scheduledAt duration created_by createdAt updatedAt",
-      })
-      .sort({ createdAt: -1 });
+    }).select("assessment").lean();
 
-    const collaborator = collaboratorRecords
-      .filter((p) => p.assessment && p.assessment.created_by?.toString() !== userId.toString())
-      .map((p) => ({
-        _id: p.assessment._id,
-        name: p.assessment.name,
-        description: p.assessment.description,
-        scheduledAt: p.assessment.scheduledAt,
-        duration: p.assessment.duration,
-        createdAt: p.assessment.createdAt,
-        updatedAt: p.assessment.updatedAt,
-      }));
+    const collabAssessmentIds = coInterviewerParticipations.map((p) => p.assessment);
+
+    const collaboratorAssessments = await Assessment.find({
+      _id: { $in: collabAssessmentIds },
+      created_by: { $ne: userId },
+    })
+      .select("name description scheduledAt duration status room_id createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Helper to attach lightweight previews and metrics
+    const attachCardMetadata = async (assessmentList) => {
+      return Promise.all(
+        assessmentList.map(async (item) => {
+          // Get candidate participants
+          const candidateParticipants = await AssessmentParticipant.find({
+            assessment: item._id,
+            role: "candidate",
+          })
+            .populate("user", "name email profilePic")
+            .select("user status")
+            .lean();
+
+          // Get interviewer count
+          const interviewerCount = await AssessmentParticipant.countDocuments({
+            assessment: item._id,
+            role: "interviewer",
+          });
+
+          // Extract candidate preview (up to 3 for avatar ring)
+          const candidates = candidateParticipants.map((p) => ({
+            name: p.user?.name || "Candidate",
+            email: p.user?.email || "",
+            profilePic: p.user?.profilePic || "",
+            status: p.status,
+          }));
+
+          return {
+            ...item,
+            roomId: item.room_id,
+            candidateCount: candidateParticipants.length,
+            interviewerCount,
+            questionCount: Array.isArray(item.questions) ? item.questions.length : 0,
+            candidates: candidates.slice(0, 3), // First 3 for avatar stack
+            totalCandidates: candidates.length,
+          };
+        })
+      );
+    };
+
+    const [hosted, collaborator] = await Promise.all([
+      attachCardMetadata(hostedAssessments),
+      attachCardMetadata(collaboratorAssessments),
+    ]);
 
     return res.status(200).json({ hosted, collaborator });
   } catch (err) {
-    console.error("Error fetching assessments:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("getMyAssessments Error:", err);
+    return res.status(500).json({ message: "Server error fetching assessments directory" });
   }
 };
 
@@ -206,6 +245,12 @@ exports.inviteParticipant = async (req, res) => {
 
     const setupUrl = `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent(destinationAfterSetup)}`;
 
+    const scheduledText = assessment.scheduledAt
+      ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+      : null;
+
+    const emailSubject = `JobSphere Invitation: ${assessment.name}`;
+
     // In template calls:
     const emailHtml = isNewUser
       ? getNewUserInviteTemplate({
@@ -224,7 +269,7 @@ exports.inviteParticipant = async (req, res) => {
         assessmentName: assessment.name,
         hostName: assessment.created_by?.name || req.user?.name,
         scheduledText,
-        dashboardUrl: role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl, // 👈 Must be absolute!
+        dashboardUrl: role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl,
         liveInterviewUrl,
       });
 

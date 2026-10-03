@@ -1,0 +1,273 @@
+/* ============================================================
+   JOBSPHERE AUTH DESIGN SYSTEM (Login, Signup, SetupAccount)
+   ============================================================ */
+
+.js-theme {
+  isolation: isolate;
+
+  /* ---------- Card ---------- */
+  --card-bg: rgba(255, 255, 255, 0.82);
+  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 30%);
+  --card-border: rgba(255, 255, 255, 0.95);
+  --card-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(5, 150, 105, 0.1),
+    0 0 0 1px rgba(4, 120, 87, 0.16),
+    0 2px 4px rgba(4, 47, 36, 0.06),
+    0 28px 50px -20px rgba(4, 47, 36, 0.32),
+    0 70px 130px -40px rgba(4, 47, 36, 0.5);
+
+  /* ---------- Panels (aside is lighter than before) ---------- */
+  --aside-bg:
+    radial-gradient(120% 70% at 0% 0%, rgba(110, 231, 183, 0.45), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(45, 212, 191, 0.3), transparent 60%),
+    linear-gradient(155deg, #12946c 0%, #0b7a58 50%, #066049 100%);
+  --aside-border: rgba(16, 185, 129, 0.22);
+  --right-panel-bg:
+    radial-gradient(70% 50% at 100% 0%, rgba(16, 185, 129, 0.1), transparent 70%),
+    linear-gradient(180deg, #ffffff, #f2faf6);
+
+  /* ---------- Text ---------- */
+  --title-color: #042f24;
+  --text-main: #064e3b;
+  --text-muted: #35514a;
+  --text-subtle: #5b7268;
+  --link: #047857;
+
+  /* ---------- Role switcher (segmented control) ---------- */
+  --seg-bg: rgba(16, 185, 129, 0.12);
+  --seg-border: rgba(5, 150, 105, 0.28);
+  --seg-text: #2b5a49;
+  --seg-text-hover: #042f24;
+
+  /* ---------- Inputs (glossy) ---------- */
+  --input-bg: linear-gradient(180deg, #ffffff 0%, #eef8f3 100%);
+  --input-bg-focus: #ffffff;
+  --input-border: #8fcdb0;
+  --input-text: #042f24;
+  --input-placeholder: #6f8a7e;
+  --input-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(5, 150, 105, 0.1),
+    0 1px 2px rgba(4, 47, 36, 0.08),
+    0 8px 16px -10px rgba(4, 47, 36, 0.3);
+  --input-readonly-bg: #eaf5ef;
+  --input-readonly-border: #c3e4d4;
+  --icon-color: #059669;
+
+  /* ---------- Code block ---------- */
+  --code-bg: #07140f;
+  --code-border: rgba(255, 255, 255, 0.14);
+
+  /* ---------- Accent ---------- */
+  --accent: #059669;
+  --accent-grad: linear-gradient(135deg, #10b981 0%, #059669 55%, #047857 100%);
+  --accent-shadow: 0 14px 32px -8px rgba(5, 150, 105, 0.6);
+  --accent-ring: rgba(16, 185, 129, 0.28);
+
+  /* ---------- Tags / dots ---------- */
+  --tag-bg: rgba(16, 185, 129, 0.14);
+  --tag-border: rgba(16, 185, 129, 0.38);
+  --tag-text: #047857;
+  --dot-active: #059669;
+  --dot-idle: #c3d5cc;
+
+  /* ---------- Atmosphere ---------- */
+  --atmo-bg:
+    radial-gradient(60% 50% at 10% 6%, rgba(16, 185, 129, 0.4), transparent 70%),
+    radial-gradient(55% 55% at 94% 96%, rgba(20, 184, 166, 0.32), transparent 70%),
+    radial-gradient(40% 40% at 88% 8%, rgba(56, 189, 248, 0.2), transparent 70%),
+    linear-gradient(160deg, #cde5d9 0%, #dbece3 50%, #c4dfd1 100%);
+  --atmo-grid: rgba(4, 80, 58, 0.07);
+}
+
+.js-theme.dark {
+  --card-bg: rgba(9, 14, 27, 0.72);
+  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 26%);
+  --card-border: rgba(255, 255, 255, 0.16);
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(16, 185, 129, 0.12),
+    0 30px 60px -20px rgba(0, 0, 0, 0.85),
+    0 0 110px -30px rgba(16, 185, 129, 0.3);
+
+  --aside-bg:
+    radial-gradient(90% 60% at 0% 100%, rgba(16, 185, 129, 0.22), transparent 65%),
+    radial-gradient(70% 50% at 100% 0%, rgba(20, 184, 166, 0.1), transparent 60%),
+    linear-gradient(155deg, rgba(7, 26, 27, 0.92), rgba(4, 8, 18, 0.9));
+  --aside-border: rgba(255, 255, 255, 0.09);
+  --right-panel-bg: linear-gradient(180deg, rgba(24, 33, 60, 0.62), rgba(14, 20, 38, 0.5));
+
+  --title-color: #ffffff;
+  --text-main: #f1f5f9;
+  --text-muted: #cbd5e1;
+  --text-subtle: #94a3b8;
+  --link: #34d399;
+
+  --seg-bg: rgba(16, 185, 129, 0.12);
+  --seg-border: rgba(255, 255, 255, 0.1);
+  --seg-text: #a7d8c4;
+  --seg-text-hover: #ffffff;
+
+  --input-bg: rgba(6, 10, 22, 0.72);
+  --input-bg-focus: rgba(8, 14, 30, 0.95);
+  --input-border: rgba(255, 255, 255, 0.16);
+  --input-text: #ffffff;
+  --input-placeholder: #7c8aa3;
+  --input-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  --input-readonly-bg: rgba(15, 23, 42, 0.7);
+  --input-readonly-border: rgba(255, 255, 255, 0.12);
+  --icon-color: #34d399;
+
+  --code-bg: #050810;
+  --code-border: rgba(255, 255, 255, 0.12);
+
+  --accent: #10b981;
+  --accent-grad: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+  --accent-shadow: 0 16px 38px -8px rgba(16, 185, 129, 0.55);
+  --accent-ring: rgba(52, 211, 153, 0.3);
+
+  --tag-bg: rgba(16, 185, 129, 0.18);
+  --tag-border: rgba(16, 185, 129, 0.42);
+  --tag-text: #34d399;
+  --dot-active: #34d399;
+  --dot-idle: #334155;
+
+  --atmo-bg:
+    radial-gradient(60% 50% at 16% 10%, rgba(16, 185, 129, 0.22), transparent 70%),
+    radial-gradient(55% 55% at 86% 92%, rgba(59, 130, 246, 0.2), transparent 70%),
+    radial-gradient(40% 40% at 90% 8%, rgba(139, 92, 246, 0.1), transparent 70%),
+    linear-gradient(160deg, #04091a 0%, #020611 100%);
+  --atmo-grid: rgba(148, 163, 184, 0.06);
+}
+
+/* Always-dark surface (desktop aside + mobile/tablet showcase card) */
+.js-aside {
+  background: var(--aside-bg);
+  --title-color: #ffffff;
+  --text-muted: #d3f3e6;
+  --text-subtle: #a9dcc7;
+  --aside-border: rgba(255, 255, 255, 0.16);
+  --tag-bg: rgba(255, 255, 255, 0.14);
+  --tag-border: rgba(255, 255, 255, 0.3);
+  --tag-text: #ecfdf5;
+  --dot-active: #ffffff;
+  --dot-idle: rgba(255, 255, 255, 0.28);
+  --code-bg: #03100b;
+  --code-border: rgba(255, 255, 255, 0.14);
+}
+.js-theme.dark .js-aside {
+  --dot-active: #34d399;
+  --tag-text: #a7f3d0;
+}
+
+/* ---------- Atmosphere ---------- */
+.js-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -20;
+  pointer-events: none;
+  background: var(--atmo-bg);
+  transition: background 0.5s ease;
+}
+.js-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--atmo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--atmo-grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 100%);
+}
+
+/* ---------- Glass ---------- */
+.glass-panel {
+  background: var(--card-sheen), var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(40px) saturate(1.5);
+  -webkit-backdrop-filter: blur(40px) saturate(1.5);
+}
+
+.glass-input {
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  color: var(--input-text);
+  box-shadow: var(--input-shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.glass-input::placeholder {
+  color: var(--input-placeholder);
+  font-weight: 400;
+}
+.glass-input:hover {
+  border-color: var(--accent);
+}
+.glass-input:focus {
+  background: var(--input-bg-focus);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  outline: none;
+}
+.glass-input:-webkit-autofill {
+  -webkit-text-fill-color: var(--input-text);
+  -webkit-box-shadow: 0 0 0 40px var(--input-bg-focus) inset;
+}
+
+.glass-input-locked {
+  background: var(--input-readonly-bg);
+  border: 1.5px solid var(--input-readonly-border);
+  color: var(--input-text);
+  cursor: not-allowed;
+}
+
+/* ---------- Role switcher + links ---------- */
+.js-seg {
+  background: var(--seg-bg);
+  border: 1px solid var(--seg-border);
+  box-shadow: inset 0 1px 2px rgba(4, 47, 36, 0.08);
+}
+.js-seg-btn {
+  color: var(--seg-text);
+}
+.js-seg-btn:hover {
+  color: var(--seg-text-hover);
+}
+.js-seg-btn.is-active,
+.js-seg-btn.is-active:hover {
+  color: #ffffff;
+}
+.js-link {
+  color: var(--link);
+}
+
+/* ---------- Primary button (glossy) ---------- */
+.js-btn-primary {
+  background: var(--accent-grad);
+  box-shadow:
+    var(--accent-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+.js-btn-primary:hover {
+  filter: brightness(1.07);
+}
+
+/* ---------- Focus + motion ---------- */
+.js-theme button:focus-visible,
+.js-theme a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-theme * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

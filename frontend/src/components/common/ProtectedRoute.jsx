@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './context/AuthContext.jsx';
-import { notify } from './notification/Notification.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { notify } from '../../notification/Notification.jsx';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isLoggedIn, user, loading } = useAuth();

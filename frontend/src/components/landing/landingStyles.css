@@ -1,0 +1,87 @@
+/* ============================================================
+   JOBSPHERE LANDING & NAVBAR SYSTEM
+   ============================================================ */
+
+:root {
+  --lp-bg: #E8F4EE;
+  --lp-bg-grad: radial-gradient(1200px 700px at 15% 10%, rgba(16, 185, 129, 0.22) 0%, transparent 60%),
+                radial-gradient(1000px 650px at 85% 90%, rgba(14, 165, 233, 0.18) 0%, transparent 60%),
+                #E8F4EE;
+
+  --lp-card-bg: rgba(255, 255, 255, 0.92);
+  --lp-card-border: #FFFFFF;
+  --lp-card-shadow: 0 25px 60px -15px rgba(6, 78, 59, 0.16),
+                    0 0 0 1.5px rgba(16, 185, 129, 0.22),
+                    inset 0 1.5px 0.5px #FFFFFF;
+
+  --lp-nav-bg: rgba(255, 255, 255, 0.9);
+  --lp-nav-border: rgba(16, 185, 129, 0.25);
+  --lp-nav-shadow: 0 10px 30px -10px rgba(6, 78, 59, 0.12);
+
+  --lp-text-title: #064E3B;
+  --lp-text-body: #1E293B;
+  --lp-text-muted: #475569;
+
+  --lp-pill-bg: rgba(16, 185, 129, 0.14);
+  --lp-pill-border: rgba(16, 185, 129, 0.35);
+  --lp-pill-text: #065F46;
+
+  --lp-canvas-preview-bg: #F0FDF4;
+  --lp-canvas-preview-border: #A7F3D0;
+  --lp-node-bg: #FFFFFF;
+  --lp-node-border: #059669;
+  --lp-node-text: #064E3B;
+
+  --lp-accent: #059669;
+  --lp-accent-shadow: 0 12px 30px -8px rgba(5, 150, 105, 0.5);
+}
+
+.dark {
+  --lp-bg: #030712;
+  --lp-bg-grad: radial-gradient(1100px 650px at 15% 10%, rgba(16, 185, 129, 0.16) 0%, transparent 60%),
+                radial-gradient(1000px 700px at 85% 90%, rgba(99, 102, 241, 0.18) 0%, transparent 65%),
+                #030712;
+
+  --lp-card-bg: rgba(11, 17, 32, 0.84);
+  --lp-card-border: rgba(255, 255, 255, 0.16);
+  --lp-card-shadow: 0 45px 120px -20px rgba(0, 0, 0, 0.98),
+                    0 0 45px -8px rgba(16, 185, 129, 0.2),
+                    inset 0 1px 0.5px rgba(255, 255, 255, 0.25);
+
+  --lp-nav-bg: rgba(11, 17, 32, 0.88);
+  --lp-nav-border: rgba(255, 255, 255, 0.14);
+  --lp-nav-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.85);
+
+  --lp-text-title: #FFFFFF;
+  --lp-text-body: #F1F5F9;
+  --lp-text-muted: #94A3B8;
+
+  --lp-pill-bg: rgba(16, 185, 129, 0.18);
+  --lp-pill-border: rgba(16, 185, 129, 0.45);
+  --lp-pill-text: #34D399;
+
+  --lp-canvas-preview-bg: rgba(6, 11, 24, 0.9);
+  --lp-canvas-preview-border: rgba(255, 255, 255, 0.12);
+  --lp-node-bg: #0F172A;
+  --lp-node-border: #10B981;
+  --lp-node-text: #F1F5F9;
+
+  --lp-accent: #10B981;
+  --lp-accent-shadow: 0 16px 40px -8px rgba(16, 185, 129, 0.55);
+}
+
+.lp-glass-card {
+  background: var(--lp-card-bg);
+  border: 1px solid var(--lp-card-border);
+  box-shadow: var(--lp-card-shadow);
+  backdrop-filter: blur(44px) saturate(180%);
+  -webkit-backdrop-filter: blur(44px) saturate(180%);
+}
+
+.lp-glass-nav {
+  background: var(--lp-nav-bg);
+  border: 1px solid var(--lp-nav-border);
+  box-shadow: var(--lp-nav-shadow);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+}

@@ -1,27 +1,41 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import Home from "./components/home/Home";
-import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard";
-import Signup from "./Signup";
-import Login from "./Login";
-import SetupAccount from "./SetupAccount";
-import { AuthProvider } from "./context/AuthContext";
-import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage";
-import AssessmentBuilder from "./components/assessment/AssessmentBuilder";
-import UpcomingAssessments from "./components/assessment/UpcomingAssessment";
-import Navbar from "./Navbar";
-import ProtectedRoute from "./ProtectedRoute";
-import NotFound from "./NotFound";
-import MyAssessment from "./components/candidate/MyAssessment";
-import { mountNotifications } from "./notification/Notification";
-import InterviewerAndCandidateProfile from "./components/profilePage/InterviewerAndCandidateProfile";
-import CandidatePracticesQuestion from "./components/home/homecomponents/CandidatePracticesQuestion";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
+import { mountNotifications } from "./notification/Notification.jsx";
+
+// Public Pages
+import Home from "./pages/Home.jsx";
+import Signup from "./pages/Signup.jsx";
+import Login from "./pages/Login.jsx";
+import SetupAccount from "./pages/SetupAccount.jsx";
+import NotFound from "./pages/NotFound.jsx";
+
+// Assessment Route Pages
+import AssessmentsDirectoryPage from "./pages/assessments/AssessmentsDirectoryPage.jsx";
+import AssessmentWorkspacePage from "./pages/assessments/AssessmentWorkspacePage.jsx";
+
+// Common Components
+import Navbar from "./components/common/Navbar.jsx";
+import ProtectedRoute from "./components/common/ProtectedRoute.jsx";
+
+// Live Room
+import VideoCallPage from "./components/interviewRoom/videocall/VideoCallPage.jsx";
+import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard.jsx";
+
+// Profile
+import ProfilePage from "./pages/ProfilePage.jsx";
+
+// Candidate Portal
+// import MyAssessment from "./components/candidate/MyAssessment.jsx";
+// import CandidatePracticesQuestion from "./components/home/homecomponents/CandidatePracticesQuestion.jsx";
 
 function AppContent() {
   const location = useLocation();
 
+  // Hide the global navigation bar only inside distraction-free login/signup and active video calls
   const hideNavbar =
-    ["/", "/login", "/signup"].includes(location.pathname) ||
+    ["/login", "/signup", "/setup-account"].includes(location.pathname) ||
     location.pathname.startsWith("/videocall/");
 
   return (
@@ -35,12 +49,12 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/setup-account" element={<SetupAccount />} />
 
-        {/* === Interviewer Dashboard / Assessment List === */}
+        {/* === Interviewer: Assessments Directory === */}
         <Route
           path="/assessments"
           element={
             <ProtectedRoute allowedRoles={["interviewer"]}>
-              <UpcomingAssessments />
+              <AssessmentsDirectoryPage />
             </ProtectedRoute>
           }
         />
@@ -48,35 +62,33 @@ function AppContent() {
           path="/assessment/upcoming_assessment"
           element={
             <ProtectedRoute allowedRoles={["interviewer"]}>
-              <UpcomingAssessments />
+              <AssessmentsDirectoryPage />
             </ProtectedRoute>
           }
         />
 
-        {/* === Interviewer: Create Assessment === */}
-        <Route
-          path="/assessments/create"
-          element={
-            <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
-            </ProtectedRoute>
-          }
-        />
+        {/* === Interviewer: Assessment Workspace / Builder === */}
         <Route
           path="/create_assessment"
           element={
             <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
+              <AssessmentWorkspacePage />
             </ProtectedRoute>
           }
         />
-
-        {/* === Interviewer: Manage Assessment Details === */}
+        <Route
+          path="/assessments/create"
+          element={
+            <ProtectedRoute allowedRoles={["interviewer"]}>
+              <AssessmentWorkspacePage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/assessments/:id"
           element={
             <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
+              <AssessmentWorkspacePage />
             </ProtectedRoute>
           }
         />
@@ -84,12 +96,12 @@ function AppContent() {
           path="/assessment/:id"
           element={
             <ProtectedRoute allowedRoles={["interviewer"]}>
-              <AssessmentBuilder />
+              <AssessmentWorkspacePage />
             </ProtectedRoute>
           }
         />
 
-        {/* === Shared Video Call & Coding Environment === */}
+        {/* === Live Interview Room === */}
         <Route
           path="/videocall/:assessmentId/:roomId"
           element={
@@ -107,7 +119,8 @@ function AppContent() {
           }
         />
 
-        {/* === Candidate-Specific Routes === */}
+        {/* === Candidate Portal (Reserved for next milestone) === */}
+        {/* 
         <Route
           path="/candidate/my_assessment"
           element={
@@ -124,13 +137,14 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        */}
 
         {/* === Common Profile === */}
         <Route
           path="/profile"
           element={
             <ProtectedRoute>
-              <InterviewerAndCandidateProfile />
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
@@ -147,10 +161,12 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
