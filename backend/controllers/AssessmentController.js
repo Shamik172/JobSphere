@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const Assessment = require("../models/Assessment");
 const AssessmentParticipant = require("../models/AssessmentParticipant");
-const { Interviewer, Candidate } = require("../models/User");
+const { User, Interviewer, Candidate } = require("../models/User");
 const sendEmail = require("../utils/mailSender");
 const { getNewUserInviteTemplate, getExistingUserInviteTemplate, } = require("../services/emailTemplates");
 
@@ -67,6 +67,7 @@ exports.getAssessmentDetails = async (req, res) => {
       description: assessment.description,
       scheduledAt: assessment.scheduledAt,
       duration: assessment.duration,
+      status: assessment.status,
       roomId: assessment.room_id,
       createdBy: assessment.created_by,
       questions: assessment.questions || [],
@@ -77,8 +78,9 @@ exports.getAssessmentDetails = async (req, res) => {
           userId: p.user._id,
           name: p.user.name,
           email: p.user.email,
+          profilePic: p.user.profilePic,
           status: p.status,
-          presence: p.presence, // added
+          presence: p.presence,
         })),
       candidates: participants
         .filter((p) => p.role === "candidate" && p.user)
@@ -87,8 +89,9 @@ exports.getAssessmentDetails = async (req, res) => {
           userId: p.user._id,
           name: p.user.name,
           email: p.user.email,
+          profilePic: p.user.profilePic,
           status: p.status,
-          presence: p.presence, // added
+          presence: p.presence,
         })),
     };
 
@@ -177,7 +180,7 @@ exports.getMyAssessments = async (req, res) => {
   }
 };
 
-// --- 4. Invite Participant (Custom Name + Single Hash + Clean Template) ---
+// --- 4. Invite Participant ---
 exports.inviteParticipant = async (req, res) => {
   try {
     const { id: assessmentId } = req.params;
@@ -195,25 +198,58 @@ exports.inviteParticipant = async (req, res) => {
       return res.status(404).json({ message: "Assessment not found" });
     }
 
-    const UserModel = role === "interviewer" ? Interviewer : Candidate;
+    if (assessment.status === "Completed") {
+      return res.status(400).json({ message: "Cannot invite participants to a completed assessment." });
+    }
 
+    const UserModel = role === "interviewer" ? Interviewer : Candidate;
     let user = await UserModel.findOne({ email: cleanEmail });
-    let isNewUser = false;
-    let temporaryPassword = null;
+
+    let temporaryKey = null;
+    let isActivationNeeded = false;
 
     if (!user) {
-      isNewUser = true;
-      temporaryPassword = crypto.randomBytes(4).toString("hex");
+      // 1. Completely new user
+      temporaryKey = crypto.randomBytes(4).toString("hex"); // 8-char hex
+      const dummyPassword = crypto.randomBytes(16).toString("hex");
 
       user = await UserModel.create({
         name: customName,
         email: cleanEmail,
-        password: temporaryPassword,
+        password: dummyPassword,
         role,
         isActivated: false,
+        activationTokens: [
+          {
+            token: temporaryKey,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days validity
+            assessmentId: assessment._id,
+          },
+        ],
       });
+      isActivationNeeded = true;
+    } else if (!user.isActivated) {
+      // 2. Existing user who has NOT yet activated (e.g. invited by another panel earlier)
+      temporaryKey = crypto.randomBytes(4).toString("hex");
+
+      // Clean up expired tokens and append this new invitation token
+      user.activationTokens = (user.activationTokens || []).filter(
+        (t) => new Date(t.expiresAt) > new Date()
+      );
+      user.activationTokens.push({
+        token: temporaryKey,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        assessmentId: assessment._id,
+      });
+
+      if (customName && (!user.name || user.name === cleanEmail.split("@")[0])) {
+        user.name = customName;
+      }
+      await user.save();
+      isActivationNeeded = true;
     }
 
+    // Check if already invited to THIS assessment
     const existingParticipant = await AssessmentParticipant.findOne({
       assessment: assessmentId,
       user: user._id,
@@ -232,18 +268,18 @@ exports.inviteParticipant = async (req, res) => {
     await newParticipant.save();
 
     const FRONTEND_URL = req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
-
-    // 1. Full absolute URLs for email buttons
     const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment._id}/${assessment.room_id}`;
     const absoluteWorkspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
     const absoluteCandidateDashboardUrl = `${FRONTEND_URL}/candidate/my_assessment`;
 
-    // 2. Relative destinations for the setup redirect parameter
     const destinationAfterSetup = role === "interviewer"
       ? `/assessments/${assessment._id}`
       : `/candidate/my_assessment`;
 
-    const setupUrl = `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent(destinationAfterSetup)}`;
+    // 🌟 Pass both email and token in the setupUrl for 1-click verification
+    const setupUrl = temporaryKey
+      ? `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(cleanEmail)}&token=${encodeURIComponent(temporaryKey)}&redirect=${encodeURIComponent(destinationAfterSetup)}`
+      : `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent(destinationAfterSetup)}`;
 
     const scheduledText = assessment.scheduledAt
       ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
@@ -251,27 +287,26 @@ exports.inviteParticipant = async (req, res) => {
 
     const emailSubject = `JobSphere Invitation: ${assessment.name}`;
 
-    // In template calls:
-    const emailHtml = isNewUser
+    const emailHtml = isActivationNeeded
       ? getNewUserInviteTemplate({
-        name: customName,
-        role,
-        assessmentName: assessment.name,
-        hostName: assessment.created_by?.name || req.user?.name,
-        scheduledText,
-        tempPassword: temporaryPassword,
-        setupUrl,
-        liveInterviewUrl,
-      })
+          name: customName,
+          role,
+          assessmentName: assessment.name,
+          hostName: assessment.created_by?.name || req.user?.name,
+          scheduledText,
+          tempPassword: temporaryKey,
+          setupUrl,
+          liveInterviewUrl,
+        })
       : getExistingUserInviteTemplate({
-        name: user.name,
-        role,
-        assessmentName: assessment.name,
-        hostName: assessment.created_by?.name || req.user?.name,
-        scheduledText,
-        dashboardUrl: role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl,
-        liveInterviewUrl,
-      });
+          name: user.name,
+          role,
+          assessmentName: assessment.name,
+          hostName: assessment.created_by?.name || req.user?.name,
+          scheduledText,
+          dashboardUrl: role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl,
+          liveInterviewUrl,
+        });
 
     try {
       await sendEmail(cleanEmail, emailSubject, emailHtml);
@@ -307,41 +342,89 @@ exports.resendInvite = async (req, res) => {
     const { id: assessmentId } = req.params;
     const { participantId } = req.body;
 
-    const participant = await AssessmentParticipant.findById(participantId).populate("user", "name email");
+    const assessment = await Assessment.findById(assessmentId).populate("created_by", "name");
+    if (!assessment) return res.status(404).json({ message: "Assessment not found" });
+
+    if (assessment.status === "Completed") {
+      return res.status(400).json({ message: "Cannot resend invites for a completed assessment." });
+    }
+
+    const participant = await AssessmentParticipant.findById(participantId).populate("user");
     if (!participant) return res.status(404).json({ message: "Participant record not found." });
 
-    const assessment = await Assessment.findById(assessmentId).populate("created_by", "name");
-    if (!assessment) return res.status(404).json({ message: "Assessment not found." });
+    const user = participant.user;
+    let temporaryKey = null;
+    let isActivationNeeded = false;
 
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    if (!user.isActivated) {
+      temporaryKey = crypto.randomBytes(4).toString("hex");
+      user.activationTokens = (user.activationTokens || []).filter(
+        (t) => new Date(t.expiresAt) > new Date()
+      );
+      user.activationTokens.push({
+        token: temporaryKey,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        assessmentId: assessment._id,
+      });
+      await user.save();
+      isActivationNeeded = true;
+    }
+
+    const FRONTEND_URL = req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
     const liveInterviewUrl = `${FRONTEND_URL}/videocall/${assessment._id}/${assessment.room_id}`;
-    const workspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
+    const absoluteWorkspaceUrl = `${FRONTEND_URL}/assessments/${assessment._id}`;
+    const absoluteCandidateDashboardUrl = `${FRONTEND_URL}/candidate/my_assessment`;
+
+    const destinationAfterSetup = participant.role === "interviewer"
+      ? `/assessments/${assessment._id}`
+      : `/candidate/my_assessment`;
+
+    const setupUrl = temporaryKey
+      ? `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(user.email)}&token=${encodeURIComponent(temporaryKey)}&redirect=${encodeURIComponent(destinationAfterSetup)}`
+      : `${FRONTEND_URL}/setup-account?email=${encodeURIComponent(user.email)}&redirect=${encodeURIComponent(destinationAfterSetup)}`;
 
     const scheduledText = assessment.scheduledAt
       ? new Date(assessment.scheduledAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
       : null;
 
-    const emailHtml = buildEmailTemplate({
-      role: participant.role,
-      assessmentName: assessment.name,
-      hostName: assessment.created_by?.name || req.user?.name,
-      scheduledText,
-      primaryUrl: participant.role === "interviewer" ? workspaceUrl : liveInterviewUrl,
-      secondaryUrl: participant.role === "interviewer" ? liveInterviewUrl : null,
-      credentials: null,
-    });
+    const emailSubject = `JobSphere Reminder: ${assessment.name}`;
 
-    await sendEmail(participant.user.email, `JobSphere Reminder: Invitation for ${assessment.name}`, emailHtml);
+    const emailHtml = isActivationNeeded
+      ? getNewUserInviteTemplate({
+          name: user.name,
+          role: participant.role,
+          assessmentName: assessment.name,
+          hostName: assessment.created_by?.name || req.user?.name,
+          scheduledText,
+          tempPassword: temporaryKey,
+          setupUrl,
+          liveInterviewUrl,
+        })
+      : getExistingUserInviteTemplate({
+          name: user.name,
+          role: participant.role,
+          assessmentName: assessment.name,
+          hostName: assessment.created_by?.name || req.user?.name,
+          scheduledText,
+          dashboardUrl: participant.role === "interviewer" ? absoluteWorkspaceUrl : absoluteCandidateDashboardUrl,
+          liveInterviewUrl,
+        });
 
-    res.status(200).json({ message: `Invitation resent to ${participant.user.email}` });
+    await sendEmail(user.email, emailSubject, emailHtml);
+
+    return res.status(200).json({ message: `Reminder delivered to ${user.email}` });
   } catch (err) {
-    res.status(500).json({ message: "Error resending invitation", error: err.message });
+    console.error("Resend Invite Error:", err);
+    return res.status(500).json({ message: "Error resending invitation", error: err.message });
   }
 };
 
 // --- 6. Remove Participant ---
 exports.removeParticipant = async (req, res) => {
   try {
+    if (assessment.status === "Completed") {
+      return res.status(400).json({ message: "Cannot remove participants from a completed assessment." });
+    }
     const { id: assessmentId, participantId } = req.params;
     const participant = await AssessmentParticipant.findOneAndDelete({
       _id: participantId,
@@ -451,31 +534,40 @@ exports.verifyRoomAccess = async (req, res) => {
       return res.status(400).json({ message: "Invalid room identifier." });
     }
 
+    // 1. Check if the session has already been concluded by the host
+    if (assessment.status === "Completed") {
+      return res.status(403).json({
+        message: "This assessment session has already been concluded by the host.",
+      });
+    }
+
+    const isHost = assessment.created_by.toString() === userId.toString();
     const participant = await AssessmentParticipant.findOne({
       assessment: assessmentId,
       user: userId,
     });
 
-    if (!participant) {
+    if (!participant && !isHost) {
       return res.status(403).json({
         message: "Forbidden: You are not an enrolled participant for this assessment.",
       });
     }
 
-    // Automatically transition candidate to "Accepted" once they successfully verify into the call
-    if (participant.status === "Invited") {
+    // 2. Automatically transition candidate/panelist to "Accepted" once they enter the room
+    if (participant && participant.status === "Invited") {
       participant.status = "Accepted";
       await participant.save();
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       authorized: true,
-      role: participant.role,
-      status: participant.status,
+      role: isHost ? "host" : participant.role,
+      status: participant ? participant.status : "Accepted",
       assessmentName: assessment.name,
     });
   } catch (error) {
-    res.status(500).json({ message: "Verification failed", error: error.message });
+    console.error("verifyRoomAccess error:", error);
+    return res.status(500).json({ message: "Verification failed", error: error.message });
   }
 };
 
@@ -497,15 +589,31 @@ exports.updateAssessmentStatus = async (req, res) => {
     await assessment.save();
 
     if (status === "Completed") {
+      // 1. Mark all participants as Completed
       await AssessmentParticipant.updateMany(
-        { assessment: assessmentId, status: "Accepted" },
-        { status: "Completed" }
+        { assessment: assessmentId },
+        { $set: { status: "Completed", presence: "Offline" } }
       );
+
+      // 2. Broadcast session termination to the room via Socket.io
+      const io = req.app.get("io");
+      if (io && assessment.room_id) {
+        io.to(assessment.room_id).emit("assessment-terminated", {
+          message: "The host has concluded this interview session.",
+          assessmentId: assessment._id,
+        });
+        console.log(`[Socket] assessment-terminated broadcasted to room: ${assessment.room_id}`);
+      }
     }
 
-    res.status(200).json({ message: `Assessment updated to ${status}`, assessment });
+    return res.status(200).json({
+      success: true,
+      message: `Assessment marked as ${status}`,
+      assessment
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error: error.message });
+    console.error("Error updating status:", error);
+    return res.status(500).json({ message: "Error updating status", error: error.message });
   }
 };
 

@@ -11,9 +11,9 @@ const addQuestionWithLink = async (req, res) => {
   try {
     const { link, assessmentId } = req.body;
     console.log(req.body);
-    
+
     const interviewerId = req.user?._id; // optional if authentication added later
-  
+
     // --- Step 1: Validate Inputs ---
     if (!link || !assessmentId)
       return res
@@ -24,6 +24,10 @@ const addQuestionWithLink = async (req, res) => {
     const assessment = await Assessment.findById(assessmentId);
     if (!assessment)
       return res.status(404).json({ message: "Assessment not found" });
+
+    if (assessment && assessment.status === "Completed") {
+      return res.status(400).json({ message: "Cannot add problems to a completed assessment." });
+    }
 
     // --- Step 3: Fetch Problem Data from LeetCode ---
     const result = await getProblemFromLink(link);
@@ -41,7 +45,7 @@ const addQuestionWithLink = async (req, res) => {
       q.exampleTestcases
     );
     console.log(generatedCases);
-    const runTestCases = generatedCases.slice(0,3);
+    const runTestCases = generatedCases.slice(0, 3);
     const hiddenTestCases = generatedCases.slice(3);
     // --- Step 5: Create Question in DB ---
     const question = await Question.create({
@@ -171,9 +175,9 @@ const addQuestionWithLinkUseAtcoder = async (req, res) => {
   try {
     const { link, assessmentId } = req.body;
     console.log(req.body);
-    
+
     const interviewerId = req.user?._id; // optional if authentication added later
-  
+
     // --- Step 1: Validate Inputs ---
     if (!link || !assessmentId)
       return res
@@ -184,7 +188,7 @@ const addQuestionWithLinkUseAtcoder = async (req, res) => {
     const assessment = await Assessment.findById(assessmentId);
     if (!assessment)
       return res.status(404).json({ message: "Assessment not found" });
-    
+
     console.log("go")
     // --- Step 3: Check if Question Already Exists ---
     const existingQuestion = await Question.findOne({ url: link });
@@ -218,7 +222,7 @@ const addQuestionWithLinkUseAtcoder = async (req, res) => {
       // q.exampleTestcases
     );
     // console.log(generatedCases);
-    const runTestCases = generatedCases.slice(0,3);
+    const runTestCases = generatedCases.slice(0, 3);
     const hiddenTestCases = generatedCases.slice(3);
     // --- Step 5: Create Question in DB ---
     const question = await Question.create({
@@ -255,7 +259,7 @@ const getRandomQuestions = async (req, res) => {
   try {
     const questions = await Question.aggregate([
       { $sample: { size: 5 } }, // randomly pick 5 documents
-      { $project: { _id: 1, title: 1 , url: 1} } // only return _id and title
+      { $project: { _id: 1, title: 1, url: 1 } } // only return _id and title
     ]);
 
     res.status(200).json({

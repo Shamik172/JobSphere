@@ -71,6 +71,21 @@ export default function VideoCallWindow({ roomId, userId, isMiniVideoCallWindow 
     }
   }, [connectionStatus]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleAssessmentTerminated = (data) => {
+      alert(data.message || "This interview assessment has been concluded by the host.");
+      // Clean redirect out of the call room back to their respective portal
+      window.location.href = "/";
+    };
+
+    socket.on("assessment-terminated", handleAssessmentTerminated);
+    return () => {
+      socket.off("assessment-terminated", handleAssessmentTerminated);
+    };
+  }, [socket]);
+
   // Handle media state changes from controls
   const handleMediaStateChange = useCallback((audio, video) => {
     setMediaState({ audio, video });

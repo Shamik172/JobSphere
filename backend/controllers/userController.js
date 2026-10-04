@@ -33,39 +33,83 @@ exports.lookupUserByEmail = async (req, res) => {
   }
 };
 
+// Verify temporary credentials before unlocking new password inputs
+exports.verifyTempPassword = async (req, res) => {
+  try {
+    const { email, tempPassword } = req.body;
+
+    if (!email || !tempPassword) {
+      return res.status(400).json({ message: "Email and temporary password are required." });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanKey = tempPassword.trim().toLowerCase();
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: "Account not found." });
+    }
+
+    if (user.isActivated) {
+      return res.status(400).json({ message: "Account is already activated. Please log in directly." });
+    }
+
+    // Match against any active, unexpired token in the array
+    const validToken = (user.activationTokens || []).find(
+      (t) => t.token.toLowerCase() === cleanKey && new Date(t.expiresAt) > new Date()
+    );
+
+    if (!validToken) {
+      return res.status(401).json({ valid: false, message: "Invalid or expired key." });
+    }
+
+    return res.status(200).json({ valid: true, message: "Access key confirmed." });
+  } catch (error) {
+    console.error("Temp password verification error:", error);
+    return res.status(500).json({ message: "Server error verifying password." });
+  }
+};
+
 exports.activateAccount = async (req, res) => {
   try {
     const { email, tempPassword, newPassword, name } = req.body;
 
     if (!email || !tempPassword || !newPassword) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields are required." });
     }
 
     // Server-side strict password policy
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({
-        message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.",
+        message:
+          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.",
       });
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanKey = tempPassword.trim().toLowerCase();
+
     const user = await User.findOne({ email: cleanEmail });
-
     if (!user) {
-      return res.status(404).json({ message: "Account not found" });
+      return res.status(404).json({ message: "Account not found." });
     }
 
-    const isMatch = await user.comparePassword(tempPassword);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect temporary password" });
+    // Match against any active token
+    const tokenIndex = (user.activationTokens || []).findIndex(
+      (t) => t.token.toLowerCase() === cleanKey && new Date(t.expiresAt) > new Date()
+    );
+
+    if (tokenIndex === -1) {
+      return res.status(401).json({ message: "Invalid or expired temporary key." });
     }
 
-    // Update user profile
+    // Update user profile and activate
     const updatedName = name && name.trim() ? name.trim() : user.name;
     user.name = updatedName;
-    user.password = newPassword;
+    user.password = newPassword; // Will be hashed by pre-save hook
     user.isActivated = true;
+    user.activationTokens = []; // Clear all activation tokens
     await user.save();
 
     // Synchronize name change to all existing participant records
@@ -114,35 +158,5 @@ exports.activateAccount = async (req, res) => {
   } catch (error) {
     console.error("Activation error:", error);
     return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-
-
-// Verify temporary credentials before unlocking new password inputs
-exports.verifyTempPassword = async (req, res) => {
-  try {
-    const { email, tempPassword } = req.body;
-
-    if (!email || !tempPassword) {
-      return res.status(400).json({ message: "Email and temporary password are required." });
-    }
-
-    const cleanEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: cleanEmail });
-
-    if (!user) {
-      return res.status(404).json({ message: "Account not found." });
-    }
-
-    const isMatch = await user.comparePassword(tempPassword.trim());
-    if (!isMatch) {
-      return res.status(401).json({ valid: false, message: "Incorrect temporary password." });
-    }
-
-    return res.status(200).json({ valid: true, message: "Temporary password verified." });
-  } catch (error) {
-    console.error("Temp password verification error:", error);
-    return res.status(500).json({ message: "Server error verifying password." });
   }
 };

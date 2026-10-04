@@ -37,7 +37,7 @@ export default function ListModal({
         aria-modal="true"
         aria-label={title}
       >
-        <div className="lp-glass-card flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl sm:max-w-lg sm:rounded-3xl shadow-2xl">
+        <div className="lp-glass-card flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:max-w-lg sm:rounded-3xl">
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-[var(--lp-pill-border)] p-4">
             {Icon && (
@@ -55,7 +55,7 @@ export default function ListModal({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white transition"
+              className="rounded-xl p-1.5 text-slate-400 transition hover:text-slate-800 dark:hover:text-white"
             >
               <X size={18} />
             </button>
@@ -66,7 +66,7 @@ export default function ListModal({
             <div className="px-4 pt-3">
               <div className="relative">
                 <Search
-                  size={15}
+                  size={14}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
@@ -74,14 +74,14 @@ export default function ListModal({
                   value={search}
                   onChange={(e) => onSearch(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="glass-input h-10 w-full rounded-xl pl-9 pr-3 text-xs sm:text-sm font-semibold"
+                  className="glass-input h-10 w-full rounded-xl pl-9 pr-3 text-ellipsis font-semibold !text-[13px] placeholder:!text-[12px] placeholder:font-medium sm:!text-sm sm:placeholder:!text-[13px]"
                 />
               </div>
             </div>
           )}
 
           {/* Body */}
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {isEmpty ? (
               <p className="py-10 text-center text-xs font-bold text-[var(--lp-text-muted)]">{emptyText}</p>
             ) : (

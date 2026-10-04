@@ -27,7 +27,7 @@ import CodingAndWhiteboard from "./components/interviewRoom/CodingAndWhiteboard.
 import ProfilePage from "./pages/ProfilePage.jsx";
 
 // Candidate Portal
-// import MyAssessment from "./components/candidate/MyAssessment.jsx";
+import MyAssessment from "./components/candidate/MyAssessment.jsx";
 // import CandidatePracticesQuestion from "./components/home/homecomponents/CandidatePracticesQuestion.jsx";
 
 function AppContent() {
@@ -120,7 +120,6 @@ function AppContent() {
         />
 
         {/* === Candidate Portal (Reserved for next milestone) === */}
-        {/* 
         <Route
           path="/candidate/my_assessment"
           element={
@@ -129,6 +128,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        {/* 
         <Route
           path="/candidatePracticesQuestion/:questionId"
           element={

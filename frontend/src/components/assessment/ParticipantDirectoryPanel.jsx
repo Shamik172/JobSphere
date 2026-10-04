@@ -10,11 +10,16 @@ import {
   Plus,
   X,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import ParticipantRow from "./ParticipantRow.jsx";
 import ListModal from "./ListModal.jsx";
 
 const PREVIEW_COUNT = 3;
+
+/* "!" beats the 16px phone rule in theme.css, so text and placeholders stay compact on phones */
+const inputBase =
+  "glass-input h-10 w-full rounded-xl text-ellipsis font-semibold !text-[13px] placeholder:!text-[12px] placeholder:font-medium sm:h-11 sm:!text-sm sm:placeholder:!text-[13px]";
 
 export default function ParticipantDirectoryPanel({
   roleTitle,
@@ -30,19 +35,20 @@ export default function ParticipantDirectoryPanel({
   handleResend,
   handleRemove,
   isCreateMode,
+  isCompleted,
 }) {
   const isInterviewer = roleKey === "interviewer";
   const emailVal = isInterviewer ? inviteData.interviewerEmail : inviteData.candidateEmail;
   const nameVal = isInterviewer ? inviteData.interviewerName : inviteData.candidateName;
 
-  const [showForm, setShowForm] = useState(participants.length === 0);
+  const [showForm, setShowForm] = useState(participants.length === 0 && !isCompleted);
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   // keep the form open while a lookup runs or shows feedback
   useEffect(() => {
-    if (status !== "idle") setShowForm(true);
-  }, [status]);
+    if (status !== "idle" && !isCompleted) setShowForm(true);
+  }, [status, isCompleted]);
 
   const preview = participants.slice(0, PREVIEW_COUNT);
   const hiddenCount = participants.length - preview.length;
@@ -60,38 +66,53 @@ export default function ParticipantDirectoryPanel({
   const nameClass =
     status === "checking" ? "is-checking animate-pulse" : status === "exists" ? "is-locked" : "";
 
-  const rowProps = { isInterviewer, isCreateMode, actionLoadingId, handleResend, handleRemove };
+  const rowProps = {
+    isInterviewer,
+    isCreateMode,
+    isCompleted,
+    actionLoadingId,
+    handleResend,
+    handleRemove,
+  };
 
   return (
     <section className="lp-glass-card min-w-0 overflow-hidden rounded-3xl">
       {/* Header band */}
-      <div className="lp-card-head py-2.5 px-3 sm:py-3.5 sm:px-4">
+      <div className="lp-card-head !px-3 !py-2.5 sm:!px-4 sm:!py-3.5">
         <div className={`lp-icon-chip !h-8 !w-8 sm:!h-9 sm:!w-9 ${isInterviewer ? "is-info" : ""}`}>
           {isInterviewer ? (
-            <Users size={16} strokeWidth={2.4} className="sm:h-[17px] sm:w-[17px]" />
+            <Users size={16} strokeWidth={2.4} />
           ) : (
-            <UserPlus size={16} strokeWidth={2.4} className="sm:h-[17px] sm:w-[17px]" />
+            <UserPlus size={16} strokeWidth={2.4} />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-xs font-black text-[var(--lp-text-title)] sm:text-sm">{roleTitle}</h3>
           <p className="text-[11px] font-bold text-[var(--lp-text-muted)] sm:text-xs">{participants.length} enrolled</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          disabled={isCreateMode}
-          aria-expanded={showForm}
-          className="lp-btn-ghost h-8 shrink-0 gap-1 px-2.5 text-xs sm:h-9 sm:px-3"
-        >
-          {showForm ? <X size={13} className="sm:h-3.5 sm:w-3.5" /> : <Plus size={13} className="sm:h-3.5 sm:w-3.5" />}
-          <span>{showForm ? "Close" : "Invite"}</span>
-        </button>
+
+        {isCompleted ? (
+          <span className="lp-badge is-warn shrink-0" title="This assessment has concluded">
+            <Lock size={11} /> Locked
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            disabled={isCreateMode}
+            aria-expanded={showForm}
+            title={showForm ? "Close invite form" : "Invite participant"}
+            className="lp-btn-ghost h-8 shrink-0 gap-1 px-2.5 text-xs sm:h-9 sm:px-3"
+          >
+            {showForm ? <X size={13} /> : <Plus size={13} />}
+            <span>{showForm ? "Close" : "Invite"}</span>
+          </button>
+        )}
       </div>
 
-      <div className="lp-card-body space-y-2.5 p-3 sm:space-y-3 sm:p-4">
-        {/* Invite form (collapsible) */}
-        {showForm && (
+      <div className="lp-card-body space-y-2.5 !p-3 sm:space-y-3 sm:!p-4">
+        {/* Invite form (collapsible, never shown once concluded) */}
+        {!isCompleted && showForm && (
           <div className="lp-surface space-y-2 rounded-2xl p-2.5 sm:space-y-2.5 sm:p-3.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-black text-[var(--lp-text-title)] sm:text-[13px]">
@@ -99,17 +120,17 @@ export default function ParticipantDirectoryPanel({
               </span>
 
               {status === "checking" && (
-                <span className="lp-badge is-warn animate-pulse !py-0.5 !px-1.5 !text-[10px] sm:!text-[11px]">
+                <span className="lp-badge is-warn animate-pulse !px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]">
                   <Loader2 size={10} className="animate-spin" /> Checking…
                 </span>
               )}
               {status === "exists" && (
-                <span className="lp-badge is-ok !py-0.5 !px-1.5 !text-[10px] sm:!text-[11px]">
+                <span className="lp-badge is-ok !px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]">
                   <UserCheck size={10} /> Registered
                 </span>
               )}
               {status === "not_found" && (
-                <span className="lp-badge !py-0.5 !px-1.5 !text-[10px] sm:!text-[11px]">New user</span>
+                <span className="lp-badge !px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]">New user</span>
               )}
             </div>
 
@@ -117,7 +138,7 @@ export default function ParticipantDirectoryPanel({
             <div className="relative">
               <Mail
                 size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lp-link)] sm:h-[15px] sm:w-[15px]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lp-link)]"
               />
               <input
                 type="email"
@@ -125,7 +146,7 @@ export default function ParticipantDirectoryPanel({
                 value={emailVal}
                 onChange={(e) => handleEmailChange(roleKey, e.target.value)}
                 onBlur={() => handleCheckEmail(roleKey)}
-                className="glass-input h-9 w-full rounded-xl pl-8 pr-8 text-xs font-semibold placeholder:text-xs placeholder:font-medium sm:h-11 sm:pl-9 sm:pr-9 sm:text-sm sm:placeholder:text-sm"
+                className={`${inputBase} pl-9 pr-9`}
               />
               {status === "checking" && (
                 <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-amber-500" />
@@ -139,16 +160,16 @@ export default function ParticipantDirectoryPanel({
             <div className="relative">
               <User
                 size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lp-text-muted)] sm:h-[15px] sm:w-[15px]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lp-text-muted)]"
               />
               <input
                 type="text"
                 placeholder={
                   status === "checking"
-                    ? "Checking account records..."
+                    ? "Checking records..."
                     : isInterviewer
-                    ? "Interviewer Name"
-                    : "Candidate Full Name"
+                    ? "Interviewer name"
+                    : "Candidate full name"
                 }
                 disabled={status === "checking" || status === "exists"}
                 value={nameVal}
@@ -158,7 +179,7 @@ export default function ParticipantDirectoryPanel({
                     [isInterviewer ? "interviewerName" : "candidateName"]: e.target.value,
                   }))
                 }
-                className={`glass-input h-9 w-full rounded-xl pl-8 pr-3 text-xs font-semibold placeholder:text-xs placeholder:font-medium sm:h-11 sm:pl-9 sm:text-sm sm:placeholder:text-sm ${nameClass}`}
+                className={`${inputBase} pl-9 pr-3 ${nameClass}`}
               />
             </div>
 
@@ -172,7 +193,7 @@ export default function ParticipantDirectoryPanel({
               type="button"
               onClick={() => handleInvite(roleKey)}
               disabled={status === "checking" || !emailVal.trim()}
-              className="js-btn-primary flex h-9 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white active:scale-[0.98] sm:h-11 sm:gap-2 sm:text-sm"
+              className="js-btn-primary flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white active:scale-[0.98] disabled:opacity-60 sm:h-11 sm:gap-2 sm:text-sm"
             >
               {status === "checking" ? (
                 <>

@@ -87,6 +87,8 @@ function WorkspaceContent() {
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
+  const isCompleted = assessment.status === "Completed";
+
   const [inviteData, setInviteData] = useState({
     interviewerName: "",
     interviewerEmail: "",
@@ -199,6 +201,7 @@ function WorkspaceContent() {
     return () => socket.off("participant-presence-changed", handlePresenceChanged);
   }, [roomId]);
 
+  // 1. In fetchAssessmentData:
   const fetchAssessmentData = useCallback(async () => {
     if (!assessmentId) return;
     setIsLoading(true);
@@ -207,8 +210,9 @@ function WorkspaceContent() {
       setAssessment({
         name: data.name || "",
         description: data.description || "",
-        scheduledAt: data.scheduledAt ? data.scheduledAt.substring(0, 16) : "",
+        scheduledAt: data.scheduledAt || "",
         duration: data.duration || 60,
+        status: data.status || "Scheduled", // Read status directly from API
       });
       setInterviewers(data.interviewers || []);
       setCandidates(data.candidates || []);
@@ -220,6 +224,35 @@ function WorkspaceContent() {
       setIsLoading(false);
     }
   }, [assessmentId]);
+
+  // 2. In handleEndAssessment:
+  const handleEndAssessment = async () => {
+    if (assessment.status === "Completed") {
+      notify("This assessment has already been concluded.", "info");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to end this assessment? This will mark the assessment as completed for all participants.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/assessments/${assessmentId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Completed" }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update assessment status");
+
+      // Immediately force local state to Completed so UI locks right away
+      setAssessment((prev) => ({ ...prev, status: "Completed" }));
+      notify("Assessment marked as Completed", "success");
+      fetchAssessmentData();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
 
   useEffect(() => {
     if (assessmentId) fetchAssessmentData();
@@ -323,23 +356,6 @@ function WorkspaceContent() {
     }
   };
 
-  const handleEndAssessment = async () => {
-    if (!window.confirm("Are you sure you want to end this assessment?")) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/assessments/${assessmentId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Completed" }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to update assessment status");
-      notify("Assessment marked as Completed", "success");
-      fetchAssessmentData();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  };
-
   /* ---------------- UI ---------------- */
   if (isLoading) {
     return <PageLoader variant="workspace" label="Loading assessment workspace…" />;
@@ -366,6 +382,7 @@ function WorkspaceContent() {
       assessmentId={assessmentId}
       navigate={navigate}
       stats={isCreateMode ? [] : stats}
+      status={assessment.status}
     />
   );
 
@@ -411,6 +428,7 @@ function WorkspaceContent() {
               handleResend={handleResend}
               handleRemove={handleRemove}
               isCreateMode={isCreateMode}
+              isCompleted={isCompleted}
             />
 
             <ParticipantDirectoryPanel
@@ -427,6 +445,7 @@ function WorkspaceContent() {
               handleResend={handleResend}
               handleRemove={handleRemove}
               isCreateMode={isCreateMode}
+              isCompleted={isCompleted}
             />
           </div>
 
@@ -440,6 +459,7 @@ function WorkspaceContent() {
               isAddingQuestion={isAddingQuestion}
               setPreviewQuestion={setPreviewQuestion}
               isCreateMode={isCreateMode}
+              isCompleted={isCompleted}
             />
           </div>
         </div>

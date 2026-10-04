@@ -22,17 +22,24 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
 
-  // Common field for all users
   profilePic: {
     type: String,
-    default: "", // Cloudinary URL or blank
+    default: "",
   },
 
-  // Account activation tracking
   isActivated: {
     type: Boolean,
     default: true,
   },
+
+  // Multiple active activation tokens to support concurrent assessment invites (company A company B company C invites)
+  activationTokens: [
+    {
+      token: { type: String, required: true },
+      expiresAt: { type: Date, required: true },
+      assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Assessment' },
+    },
+  ],
 
 }, {
   timestamps: true,
@@ -56,10 +63,8 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Create Base Model
 const User = mongoose.model('User', UserSchema);
 
-// Create Discriminators (Specialized roles)
 const Interviewer = User.discriminator('interviewer', new mongoose.Schema({
   company: { type: String, required: false },
   department: { type: String, required: false },

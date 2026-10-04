@@ -72,6 +72,9 @@ app.use("/api/interviewer",interviewerRoutes);
 app.use("/api/candidate", candidateRoutes);
 app.use("/api/users", require("./routes/userRoutes"));
 
+// Attach io instance to express app so controllers can access it via req.app.get("io")
+app.set("io", io);
+
 // Socket.io
 io.on("connection", (socket) => socketHandler(io, socket));
 collabHandler(io);

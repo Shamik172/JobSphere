@@ -41,7 +41,10 @@ const statusOf = (a) => {
 const countOf = (a, arrKey, countKey) =>
   Array.isArray(a[arrKey]) ? a[arrKey].length : typeof a[countKey] === "number" ? a[countKey] : 0;
 
-const relLabel = (iso, duration = 60) => {
+const relLabel = (iso, duration = 60, status) => {
+  // If explicitly completed, do not calculate time window
+  if (status === "Completed") return null;
+
   if (!iso) return null;
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return null;
@@ -83,7 +86,7 @@ function AssessmentCard({ a, onOpen, onEnter }) {
   const isHost = a.__role === "host";
   const candidates = Array.isArray(a.candidates) ? a.candidates : [];
   const first = candidates[0];
-  const rel = relLabel(a.scheduledAt, a.duration);
+  const rel = relLabel(a.scheduledAt, a.duration, a.status);
 
   const totalCandidates = a.totalCandidates ?? countOf(a, "candidates", "candidateCount");
   const stats = [
@@ -105,17 +108,15 @@ function AssessmentCard({ a, onOpen, onEnter }) {
         <div className="flex items-center justify-between gap-1.5 pb-2.5 border-b border-[var(--lp-surface-border)]/50">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
-              className={`lp-badge ${
-                state === "live" ? "is-ok" : state === "completed" ? "is-warn" : "is-info"
-              } !text-[10px] !py-0.5 !px-2 !font-bold`}
+              className={`lp-badge ${state === "live" ? "is-ok" : state === "completed" ? "is-warn" : "is-info"
+                } !text-[10px] !py-0.5 !px-2 !font-bold`}
             >
               {state === "live" && <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400 mr-1" />}
               {a.status || "Scheduled"}
             </span>
             <span
-              className={`lp-badge ${
-                isHost ? "is-ok" : "is-info"
-              } !text-[10px] !py-0.5 !px-2 !font-semibold`}
+              className={`lp-badge ${isHost ? "is-ok" : "is-info"
+                } !text-[10px] !py-0.5 !px-2 !font-semibold`}
             >
               {isHost ? "Host" : "Panelist"}
             </span>
@@ -237,9 +238,8 @@ function SummaryTile({ icon: Icon, label, value, active, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`lp-emerald-tile flex min-w-0 items-center gap-2 rounded-xl p-2 sm:p-2.5 transition-all ${
-        active ? "is-active ring-1 ring-[var(--lp-link)]" : ""
-      }`}
+      className={`lp-emerald-tile flex min-w-0 items-center gap-2 rounded-xl p-2 sm:p-2.5 transition-all ${active ? "is-active ring-1 ring-[var(--lp-link)]" : ""
+        }`}
     >
       <div className="lp-icon-chip !h-7 !w-7 sm:!h-8 sm:!w-8 shrink-0">
         <Icon size={14} strokeWidth={2.4} className="sm:h-4 sm:w-4" />
@@ -372,7 +372,7 @@ function DirectoryContent() {
         </div>
       </section>
 
-{/* Filter Tiles: Single row on md+, clean 2x2 on small mobile */}
+      {/* Filter Tiles: Single row on md+, clean 2x2 on small mobile */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <SummaryTile icon={LayoutGrid} label="Total rounds" value={totals.all} active={statusFilter === "all"} onClick={() => toggleStatus("all")} />
         <SummaryTile icon={Radio} label="Live now" value={totals.live} active={statusFilter === "live"} onClick={() => toggleStatus("live")} />
@@ -410,9 +410,8 @@ function DirectoryContent() {
                   key={t.key}
                   type="button"
                   onClick={() => setTab(t.key)}
-                  className={`lp-tab flex-1 justify-center px-2 py-1 text-center text-xs sm:flex-none sm:px-2.5 ${
-                    tab === t.key ? "is-active" : ""
-                  }`}
+                  className={`lp-tab flex-1 justify-center px-2 py-1 text-center text-xs sm:flex-none sm:px-2.5 ${tab === t.key ? "is-active" : ""
+                    }`}
                 >
                   <span className="truncate">{t.label}</span>
                   <span className="lp-tab-count ml-1 shrink-0 text-[10px]">{t.n}</span>
